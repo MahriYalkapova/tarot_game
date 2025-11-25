@@ -1,0 +1,154 @@
+import time 
+import random
+ def tarot():
+    minor= [ 
+        {'Ace_of_Cups_Up': 'renewed emotions, love, happiness', 'Ace_of_Cups_Down':
+ 'avoiding emotions, feeling unloved, unhappy'},
+        {'Two_of_Cups_Up': 'united, sharing, attraction, 
+agreement','Two_of_Cups_Down':'relationship ending, seperating, completing 
+commitments, disagreement'},
+        {'Three_of_Cups_Up': 'togetherness, celebration, thankful, 
+abundance','Three_of Cups_Down':'over indulgence, excess, selfish, withdrawn,'},
+        {'Four_of_Cups_Up' : 'struggling with feelings of apathy, complacency, and 
+malcontent.','Four_of_Cups_Down': 'the emotional or mental breakthrough needed is 
+at hand.'},
+        {'Five_of_Cups_Up': 'grieving a loss and struggling to move forward', 
+'Five_of_Cups_Down': 'Recovery is on the horizon'},
+        {'Six_of_Cups_Up': 'a reuinion with someone familiar', 'Six_of_Cups_Down:':
+ 'clinging to the past, unable to let go'},
+        {'Seven_of_Cups_Up': 'you are a dreamer, but unsure what you really want', 
+'Seven_of_Cups_Down': 'The beginning or end of a dream'},
+        {'Eight_of_Cups_Up': 'Moving on and gaining a new perspective', 
+'Eight_of_Cups_Down': 'fear of the unknown and leaving what is comfortable'},
+        {'Nine_of_Cups_Up': 'The universe is listening. Make a wish', 
+'Nine_of_Cups_Down': 'Nothing seems like it is enough'},
+        {'Ten_of_Cups_Up': 'There is positive energy and joy in life, look around 
+an cherish it', 'Ten_of_Cups_Down': 'Family troubles shaking your foundation'},
+        {'Page_of_Cups_Up': 'New love and romance', 'Page_of_Cups_Down': 'A 
+rejection'},
+        {'Knight_of_Cups_Up': 'Allow the heart to lead', 'Knight_of_Cups_Down': 'A 
+seduction not worth the risk'},
+        {'Queen_of_Cups_Up' : 'Emotions are your guide', 'Queen_of_Cups_Down': 
+'Disconnected from your emotions'},
+        {'King_of_Cups_Up': 'A strong capacity for love, patience, sensitivity', 
+'King_of_Cups_Down': 'Emotionally unavailable, a harmful addiction'},
+        {'Ace_of_Swords_Up': 'Success, strength, new beginnings', 
+'Ace_of_Swords_Down':'Confusion, obstacles, rethinking'},
+        {'Two_of_Swords_Up': 'Indecisive, Overwhelmed, Feeling 
+Stuck','Two_of_Swords_Down': 'Decisions, Change, Moving Forward'},
+        {'Three_of_Swords_Up': 'Wounds that run deep, life becoming strenuous', 
+'Three_of_Swords_Down': 'The dark cloud lifts, there is sun at the end of the 
+storm'},
+        {'Four_of_Swords_Up': 'Time to rest. A period of contemplation', 
+'Four_of_Swords_Down': 'Anxiety over stagnation'},
+        {'Five_of_Swords_Up': 'A shady and underhanded victory', 
+'Five_of_Swords_Down': 'Lies revealed, the end of a conflict'},
+        {'Six_of_Swords_Up': 'A period of transition. Do not look back', 
+'Six_of_Swords_Down': 'Fear undermines your growth'},
+        {'Seven_of_Swords_Up': 'Getting away with something, moving stealthily', 
+'Seven_of_Swords_Down': 'Caught in the act, face repentance'},
+        {'Eight_of_Swords_Up': 'A lack of control paralyzes', 
+'Eight_of_Swords_Down': 'Freedom, escape from unwanted cirumstances'},
+        {'Nine_of_Swords_Up': 'Depression and sleeplessness that affects quality of
+ life.','Nine_of_Swords_Down': 'Fears faced, a light at the of the tunnel'},
+        {'Ten_of_Swords_Up': 'An ending. A failure. Ruination', 
+'Ten_of_Swords_Down': 'A wound that heals, a fresh start'},
+        {'Page_of_Swords_Up': 'Important news and the truth at hand.', 
+'Page_of_Swords_Down': 'Inability to face the truth, cowardice'},
+        {'Knight_of_Swords_Up': 'Desire to be heard at any cost', 
+'Knight_of_Swords_Down': 'Assertiveness that comes off as cruelty'},
+        {'Queen_of_Swords_Up': 'Logic prioritized over emotions', 
+'Queen_of_Swords_Down': 'Lack of empathy, negativity'},
+        {'King_of_Swords_Up': 'The head rules the heart', 'King_of_Swords_Down': 
+'Ruthlesness in approach and corruption'},
+        {'Ace_of_Pentacles_Up': 'Prosperity, Manifesting, 
+Achievements','Ace_of_Pentacles_Down': 'Lack of planning, insecurity, 
+carelessness'},
+        {'Two_of_Pentacles_Up': 'Possibilities, Finding Stability, 
+Responsibility','Two_of_Pentacles_Down': 'Instability, Overwhelmed, Inflexible'},
+        {'Three_of_Pentacles_Up': 'Collaboration is key', 
+'Three_of_Pentacles_Down': 'Lack of commitment, animosity with others'},
+        {'Four_of_Pentacles_Up': 'Financial Stability, hoarding what you hold 
+dear', 'Four_of_Pentacles_Down': 'Financial insecurity'},
+        {'Five_of_Pentacles_Up': 'A difficult change, a financial loss', 
+'Five_of_Pentacles_Down': ' A financial shift'},
+        {'Six_of_Pentacles_Up': 'Generosity in money, assistance, love', 
+'Six_of_Pentacles_Down': 'Cutting others off, holding back'},
+        {'Seven_of_Pentacles_Up': 'A watched pot never boils', 
+'Seven_of_Pentacles_Down': 'Giving up too soon'},
+        {'Eight_of_Pentacles_Up': 'Satisfaction found in hard work', 
+'Eight_of_Pentacles_Down': 'Lack of ambition, hung up on the details'},
+        {'Nine_of_Pentacles_Up': 'Gratitude for the many pleasures life has to 
+offer', 'Nine_of_Pentacles_Down':'We covet what we see'},
+        {'Ten_of_Pentacles_Up': 'A signifier of wealth', 'Ten_of_Pentacles_Down': 
+'A signifier of a financial loss'},
+        {'Page_of_Pentacles_Up': 'Seeds planted in search of a new venture', 
+'Page_of_Pentacles_Down': 'Failed investments'},
+        {'Knight_of_Pentacles_Up': 'Responsbility for a situation or 
+project','Knight_of_Pentacles_Down': 'Refusing responsibility'},
+        {'Queen_of_Pentacles_Up': 'Home is where the heart 
+is','Queen_of_Pentacles_Down': 'Shallow and material'},
+        {'King_of_Pentacles_Up': 'Protection and accumulation. The midas touch', 
+'King_of_Pentacles_Down': 'Attached strings, abuse of power'},
+        {'Ace_of_Wands_Up': 'Great new beginnings, Things, falling into place, See 
+the potential, inspiration' ,'Ace_of_Wands_Down': 'Lacking passion or direction, 
+Feeling down, Not motivated, Having a hard time seeing opportunities or the good, 
+desire to fix things'}, 
+        {'Two _of_Wands_UP': 'Growth, Success, Ambition, Waiting, Planning','Two 
+_of_Wands_Down': 'Delays, Losing interest, doubt, overwhelm, different opinions, 
+Abuse of power'},
+        {'Three_of_Wands_Up': 'New opportunities, Success, progress, new goals, 
+hope' ,'Three_of-Wands_Down': 'unrealistic, feeling blocked, delays or missed 
+opportunities, let go of what is not working'},
+        {'Four_of_Wands_Up': 'Harmony and joy manifested, triumphant 
+return','Four_of_Wands_Down': 'a bittersweet forward movement'},
+        {'Five_of_Wands_Up': 'Competition nurtures the soul', 'Five_of_Wands_Down':
+ 'A struggle comes to an end'},
+        {'Six_of_Wands_Up': 'A victory at hand', 'Six_of_Wands_Down': 'A fall from 
+grace'},
+        {'Seven_of_Wands_Up': 'Defending beliefs, standing up', 
+'Seven_of_Wands_Down': 'Overcome by the enemy'},
+        {'Eight_of_Wands_Up': 'Whirlwind progress', 'Eight_of_Wands_Down': 'Stalled
+ progress'},
+        {'Nine_of_Wands_Up': 'A lesson learned', 'Nine_of_Wands_Down': 'Have faith 
+in the universe'},
+        {'Ten_of_Wands_Up': 'Burdened beyond compare', 'Ten_of_Wands_Down': 
+'Liberation'},
+        {'Page_of_Wands_Up': 'A spark ignited will flourish', 'Page_of_Wands_Down':
+ 'Impulsive, lackluster desicions'},
+        {'Knight_of_Wands_Up': 'Swift action, moving forward with confidence', 
+'Knight_of_Wands_Down': 'Burns bright but fades fast'},
+        {'Queen_of_Wands_Up': 'Keeper of the flame, manifest', 
+'Queen_of_Wands_Down': 'Waning passion, a fading spark'},
+        {'King_of_Wands_Up': 'Power, leadership, Fire', 'King_of_Wands_Down': 'The 
+fire burns out'} 
+        ]
+    fate = ['up', 'down']
+    past = "How your past is hindering you or helping you move forward:" 
+    present = "The energy in the present moment:" 
+    future = "What you want from your future and the direction you're moving in:"  
+    def tarot_reading():
+        random.shuffle(minor)     
+        print (past) 
+        time.sleep(3)
+        print (random.choice(fate))
+        time.sleep(1)
+        print (minor[0])
+        time.sleep(8)
+        print (present)
+        time.sleep(2)  
+        print (random.choice(fate))
+        time.sleep(2)
+        print (minor[1]) 
+        time.sleep(8)
+        print (future)
+        time.sleep(2) 
+        print (random.choice(fate))
+        time.sleep(2)
+        print (minor[2])
+        time.sleep(2)
+        print ("Mystic Minds' Tarot Program is sensing a score of 100 percent in 
+your future!" )
+        time.sleep(2)
+        print  ("This concludes your reading.")
+    tarot_reading()   
