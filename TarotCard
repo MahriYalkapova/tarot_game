@@ -1,0 +1,167 @@
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+
+// Orientation enum
+enum class Orientation { Upright, Reversed };
+
+// TarotCard class with fixed-size strings
+class TarotCard {
+public:
+    const char *name;
+    const char *upright;
+    const char *reversed;
+
+    TarotCard(const char *n, const char *u, const char *r)
+        : name(n), upright(u), reversed(r) {}
+
+    const char* meaning(Orientation o) const {
+        return (o == Orientation::Upright) ? upright : reversed;
+    }
+};
+
+// Example deck (expand to 78 cards)
+TarotCard deck[] = {
+        TarotCard( "Ace_of_Cups" , "renewed emotions, love, happiness",
+         "Reversed: avoiding emotions, feeling unloved, unhappy"),
+        TarotCard( "Two_of_Cups" , "united, sharing, attraction, agreement",
+         "Reversed: relationship ending, separating, completing  commitments, disagreement"),
+        TarotCard( "Three_of_Cups" , "togetherness, celebration, thankful, abundance",
+         "Reversed: over indulgence, excess, selfish, withdrawn,"),
+        TarotCard( "Four_of_Cups" ,  "struggling with feelings of apathy, complacency, and malcontent.",
+         "Reversed: the emotional or mental breakthrough needed is at hand."),
+        TarotCard( "Five_of_Cups" , "grieving a loss and struggling to move forward",
+         "Reversed: Recovery is on the horizon"),
+        TarotCard( "Six_of_Cups" , "a reunion with someone familiar",
+         "Reversed: clinging to the past, unable to let go"),
+        TarotCard( "Seven_of_Cups" , "you are a dreamer, but unsure what you really want",
+         "Reversed: The beginning or end of a dream"),
+        TarotCard( "Eight_of_Cups" , "Moving on and gaining a new perspective",
+         "Reversed: fear of the unknown and leaving what is comfortable"),
+        TarotCard( "Nine_of_Cups" , "The universe is listening. Make a wish",
+         "Reversed: Nothing seems like it is enough"),
+        TarotCard( "Ten_of_Cups" , "There is positive energy and joy in life, look around and cherish it",
+         "Reversed: Family troubles shaking your foundation"),
+        TarotCard( "Page_of_Cups" , "New love and romance",
+         "Reversed: A rejection"),
+        TarotCard( "Knight_of_Cups" , "Allow the heart to lead",
+         "Reversed: A seduction not worth the risk"),
+        TarotCard( "Queen_of_Cups:  : " ,"Emotions are your guide",
+         "Reversed: Disconnected from your emotions"),
+        TarotCard( "King_of_Cups" , "A strong capacity for love, patience, sensitivity",
+        "Reversed: Emotionally unavailable, a harmful addiction"),
+        TarotCard( "Ace_of_Swords" , "Success, strength, new beginnings",
+         "Reversed: Confusion, obstacles, rethinking"),
+        TarotCard( "Two_of_Swords" , "Indecisive, Overwhelmed, Feeling Stuck",
+         "Reversed: Decisions, Change, Moving Forward"),
+        TarotCard( "Three_of_Swords" , "Wounds that run deep, life becoming strenuous",
+         "Reversed: The dark cloud lifts, there is sun at the end of the storm"),
+         TarotCard( "Four_of_Swords" , "Time to rest. A period of contemplation",
+          "Reversed: Anxiety over stagnation"),
+        TarotCard( "Five_of_Swords" , "A shady and underhanded victory",
+         "Reversed:Lies revealed, the end of a conflict"),
+        TarotCard( "Six_of_Swords" , "A period of transition. Do not look back",
+         "Reversed: Fear undermines your growth"),
+        TarotCard( "Seven_of_Swords" , "Getting away with something, moving stealthily",
+         "Reversed: Caught in the act, face repentance"),
+        TarotCard( "Eight_of_Swords" , "A lack of control paralyzes",
+         "Reversed: Freedom, escape from unwanted circumstances"),
+        TarotCard( "Nine_of_Swords" , "Depression and sleeplessness that affects quality of life.",
+         "Reversed: Fears faced, a light at the of the tunnel"),
+         TarotCard( "Ten_of_Swords" , "An ending. A failure. Ruination",
+          "Reversed: A wound that heals, a fresh start"),
+        TarotCard( "Page_of_Swords" , "Important news and the truth at hand.",
+         "Reversed: Inability to face the truth, cowardice"),
+        TarotCard( "Knight_of_Swords" , "Desire to be heard at any cost",
+         "Reversed: Assertiveness that comes off as cruelty"),
+        TarotCard( "Queen_of_Swords" , "Logic prioritized over emotions",
+         "Reversed: Lack of empathy, negativity"),
+        TarotCard( "King_of_Swords" , "The head rules the heart",
+         "Reversed: Ruthlessness in approach and corruption"),
+        TarotCard( "Ace_of_Pentacles" , "Prosperity, Manifesting, Achievements",
+         "Reversed: Lack of planning, insecurity,  carelessness"),
+        TarotCard( "Two_of_Pentacles" , "Possibilities, Finding Stability, Responsibility",
+         "Reversed: Instability, Overwhelmed, Inflexible"),
+        TarotCard( "Three_of_Pentacles" , "Collaboration is key",
+         "Reversed: Lack of commitment, animosity with others"),
+        TarotCard( "Four_of_Pentacles" , "Financial Stability, hoarding what you hold dear",
+         "Reversed: Financial insecurity"),
+        TarotCard( "Five_of_Pentacles" , "A difficult change, a financial loss",
+         "Reversed:  A financial shift"),
+         TarotCard( "Six_of_Pentacles" , "Generosity in money, assistance, love",
+          "Reversed: Cutting others off, holding back"),
+        TarotCard( "Seven_of_Pentacles" , "A watched pot never boils",
+         "Reversed: Giving up too soon"),
+        TarotCard( "Eight_of_Pentacles" , "Satisfaction found in hard work",
+         "Reversed: Lack of ambition, hung up on the details"),
+        TarotCard( "Nine_of_Pentacles" , "Gratitude for the many pleasures life has to offer",
+         "Reversed: We covet what we see"),
+         TarotCard( "Ten_of_Pentacles" , "A signifier of wealth",
+          "Reversed: A signifier of a financial loss"),
+        TarotCard( "Page_of_Pentacles" , "Seeds planted in search of a new venture",
+         "Reversed: Failed investments"),
+        TarotCard( "Knight_of_Pentacles" , "Responsibility for a situation or project",
+         "Reversed: Refusing responsibility"),
+        TarotCard( "Queen_of_Pentacles" , "Home is where the heart is",
+         "Reversed: Shallow and material"),
+        TarotCard( "King_of_Pentacles" , "Protection and accumulation. The midas touch",
+         "Reversed: Attached strings, abuse of power"),
+         TarotCard( "Ace_of_Wands" , "Great new beginnings, Things, falling into place, See the potential, inspiration" ,
+          "Reversed: Lacking passion or direction, Feeling down, Not motivated, Having a hard time seeing opportunities or the good, desire to fix things"),
+        TarotCard( "Two _of_Wands" , "Growth, Success, Ambition, Waiting, Planning",
+        "Reversed: Delays, Losing interest, doubt, overwhelm, different opinions, Abuse of power"),
+        TarotCard( "Three_of_Wands" , "New opportunities, Success, progress, new goals, hope" ,
+         "Reversed: unrealistic, feeling blocked, delays or missed opportunities, let go of what is not working"),
+        TarotCard( "Four_of_Wands" , "Harmony and joy manifested, triumphant return",
+         "Reversed: a bittersweet forward movement"),
+        TarotCard( "Five_of_Wands" , "Competition nurtures the soul",
+         "Reversed: A struggle comes to an end"),
+        TarotCard( "Six_of_Wands" , "A victory at hand",
+         "Reversed: A fall from grace"),
+        TarotCard( "Seven_of_Wands" , "Defending beliefs, standing up",
+         "Reversed: Overcome by the enemy"),
+        TarotCard( "Eight_of_Wands" , "Whirlwind progress",
+         "Reversed: Stalled progress"),
+        TarotCard( "Nine_of_Wands" , "A lesson learned",
+         "Reversed: Have faith in the universe"),
+        TarotCard( "Ten_of_Wands" , "Burdened beyond compare",
+        "Reversed: Liberation"),
+        TarotCard( "Page_of_Wands" , "A spark ignited will flourish",
+        "Reversed: Impulsive, lackluster decision"),
+        TarotCard( "Knight_of_Wands" , "Swift action, moving forward with confidence",
+        "Reversed: Burns bright but fades fast"),
+        TarotCard( "Queen_of_Wands" , "Keeper of the flame, manifest",
+         "Reversed: Waning passion, a fading spark"),
+        TarotCard( "King_of_Wands" , "Power, leadership, Fire",
+         "Reversed: The fire burns out")
+};
+
+const int deckSize = sizeof(deck) / sizeof(deck[0]); // entire deck size/size of card
+
+// Fisher–Yates shuffle
+void shuffleDeck(TarotCard[],int deckSize_0) {
+    for (int i = deckSize_0 - 1; i > 0; --i) {
+        int j = rand() % (i + 1);
+        TarotCard temp = deck[i];
+        deck[i] = deck[j];
+        deck[j] = temp;
+    }
+}
+
+int main() {
+    srand(time(NULL));
+
+    shuffleDeck(deck,deckSize);
+
+    TarotCard drawn = deck[0];
+    Orientation o = (rand() % 2 == 0) ? Orientation::Upright : Orientation::Reversed;
+
+    printf("Card: %s\n %s\n",
+    drawn.name,(o == Orientation::Upright ? drawn.upright : drawn.reversed));
+
+    // Replace with LCD driver calls
+    // LCD_PrintString(drawn.name) LCD_PrintString(o == Orientation::Upright ? "Upright" : "Reversed");
+    // LCD_PrintString(drawn.meaning(o));
+
+    return 0;
+}
