@@ -46,7 +46,9 @@
 #define BTN_1 0x02 //will be connected to PE1 *** //Choose Reading Type
 #define BTN_2 0x04 //will be connected to PE2 *** // Select type //SHOULD THIS BE A DIFF PORT FOR HIGHER PRIORITY THAN PORTE? 
 #define BTN_3 0x08 //will be connected to PE3 *** // 
-#define BTN_0 0x10 //will be connected to PE4 *** //Shuffle
+//#define BTN_0 0x10 //will be connected to PE4 *** //Shuffle
+
+#define SOUND_SENSOR 0x10
 
 
 //-------------------------GPIO PORT F-------------------------
@@ -179,7 +181,7 @@ void PortE_Init(void){
 	GPIO_PORTE_AFSEL_R = 0x00; //no alternative functions. 
 	//GPIO_PORTE_PCTL_R = 0x00000000;   // 4) GPIO clear bit PCTL 
 	GPIO_PORTE_DIR_R &= ~0x1E; //0x1E = 0001 1110 Connected pins are E1-E4; INPUT ***
-	GPIO_PORTE_PUR_R = 0x1E;          // enable pullup resistors on PE1-PE4 ***
+	GPIO_PORTE_PUR_R = 0x0E;          // enable pullup resistors on PE1-PE4 ***
   GPIO_PORTE_DEN_R = 0x1E;          // enable digital pins PE1-PE4 ***
 	
 }
@@ -403,11 +405,19 @@ int main() {
 	//  Delay(); //TEMP in place of delay_ms(500);
 	//  LCD_Cmd(0xC0); //2nd Row
 		int type = selReadingType();
+		
+		unsigned long sound = GPIO_PORTE_DATA_R & SOUND_SENSOR;
+    int lastClap = (sound ? 1 : 0);  // seed with real state
 	
 		while (1) {
+			
+			unsigned long clap = GPIO_PORTE_DATA_R & SOUND_SENSOR;
+			int clapNow = (clap ? 1 : 0);
 		
-			if ((GPIO_PORTE_DATA_R & BTN_0) == 0){ // IF BTN0 PRESSED SHUFFLE INCOMPLETE BUT DO THE THINGS> GIVE READING ON LCD !!! 
-				srand(TIMER2_TAV_R); //read the value in timer2 and use it to generate random
+			//if ((GPIO_PORTE_DATA_R & BTN_0) == 0){ // IF BTN0 PRESSED SHUFFLE INCOMPLETE BUT DO THE THINGS> GIVE READING ON LCD !!! 
+			// from 1 -> 0
+			if (lastClap == 1 && clapNow == 0) {	
+			srand(TIMER2_TAV_R); //read the value in timer2 and use it to generate random
 				shuffleDeck(deck,deckSize);
 				
 				struct TarotCard drawn = deck[0];
@@ -434,6 +444,8 @@ int main() {
 				showCardOnLCD(&drawn, o);
 				Timer0A_WaitMs(200); //debounce
 			}
+			
+			lastClap = clapNow;
 			
 			//side scroll every 250ms
 			Timer0A_WaitMs(250);
