@@ -176,13 +176,13 @@ void PortE_Init(void){
 	SYSCTL_RCGC2_R |= 0x0000010;     // 1) E clock
 	volatile unsigned long delay;
 	delay = SYSCTL_RCGC2_R; //reading register adds a delay
-  GPIO_PORTE_CR_R = 0x1E;           // Allow changes to PE4-0 ***
+  GPIO_PORTE_CR_R = 0x10;           // Allow changes to PE4-0 ***
   GPIO_PORTE_AMSEL_R = 0x00; //disable analog functions. 	
 	GPIO_PORTE_AFSEL_R = 0x00; //no alternative functions. 
 	//GPIO_PORTE_PCTL_R = 0x00000000;   // 4) GPIO clear bit PCTL 
-	GPIO_PORTE_DIR_R &= ~0x1E; //0x1E = 0001 1110 Connected pins are E1-E4; INPUT ***
-	GPIO_PORTE_PUR_R = 0x0E;          // enable pullup resistors on PE1-PE4 ***
-  GPIO_PORTE_DEN_R = 0x1E;          // enable digital pins PE1-PE4 ***
+	GPIO_PORTE_DIR_R &= ~0x10; //~0x10 : 1110 1111 Connected pins are E4; 0 for INPUT ***
+	GPIO_PORTE_PUR_R = 0x00;          // disable all pullup resistors ***
+  GPIO_PORTE_DEN_R = 0x10;          // enable digital pins PE1-PE4 ***
 	
 }
 
@@ -192,13 +192,13 @@ volatile unsigned long delay;
   SYSCTL_RCGC2_R |= 0x00000020;     // 1) F clock
   delay = SYSCTL_RCGC2_R;           // reading register adds a delay   
   GPIO_PORTF_LOCK_R = 0x4C4F434B;   // 2) unlock PortF PF0  
-  GPIO_PORTF_CR_R = 0x1F;           // allow changes to PF4-0       
+  GPIO_PORTF_CR_R = 0x11;           // allow changes to PF4-0       
   GPIO_PORTF_AMSEL_R = 0x00;        // 3) disable analog function
 //  GPIO_PORTF_PCTL_R = 0x00000000; // 4) GPIO clear bit PCTL  
   GPIO_PORTF_DIR_R = 0x0E;          // 5) PF4,PF0 input, PF3,PF2,PF1 output 0b01110   
   GPIO_PORTF_AFSEL_R = 0x00;        // 6) no alternate function
   GPIO_PORTF_PUR_R = 0x11;          // enable pullup resistors on PF4,PF0       
-  GPIO_PORTF_DEN_R = 0x1F;          // 7) enable digital pins PF4-PF0    
+  GPIO_PORTF_DEN_R = 0x11;          // 7) enable digital pins PF4-PF0    
   NVIC_EN0_R = 0x40000000;        /* 4 0100 sets bit 30 to 1 Enables interrupt 30 for PortF in NVIC enabling PF0-PF4 */  
 	NVIC_PRI7_R = (NVIC_PRI7_R & 0xFF1FFFFF) | 0x00600000; /* Clrs bits 23:21 PField for IRQ 30 PortF 6 = 0110 makes b23-21:011 = 2^1+2^0 priority 3 Lect3Slide56 */
 
@@ -543,3 +543,4 @@ void squiggle(void){
 		Timer0A_WaitMs(150);
 	}
 }
+
