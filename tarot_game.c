@@ -2,8 +2,12 @@
 
 //TAROT CARD GAME TO BE CONNECTED TO TM4C123GH6PM MP 
 //AND LCD & BUTTONS. IMPLEMENTS TIMER2A and _______ 
-//[port details, TIMER details SW1 Funct etc]
-// NEED TO DECIDE ON LCD PORTS, TIMER LENGTH, ADD A MUCH SMALLER TIMER. 
+// ***ADD[port details, TIMER details SW Functions etc]***
+// ***NARROW DOWN PORT E & PRIORIOTIES - CLEAN UP UNUSED BUTTONS! 
+// ***DOUBLE CHECK PORT F DEFINITION - DONT LEAVE OPEN PINS THAT ARENT NEEDED. 
+// *** TIE IN  READING TYPE. GOODBYE MESSAGE? TIME OUT & TURN OFF? 
+// *** 2 CLAPS TO SHUFFLE VIA 
+
 #include "tm4c123gh6pm.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,8 +45,8 @@
 
 #define BTN_1 0x02 //will be connected to PE1 *** //Choose Reading Type
 #define BTN_2 0x04 //will be connected to PE2 *** // Select type //SHOULD THIS BE A DIFF PORT FOR HIGHER PRIORITY THAN PORTE? 
-#define BTN_3 0x08 //will be connected to PE3 *** // Shuffle
-#define BTN_0 0x10 //will be connected to PE4 *** //
+#define BTN_3 0x08 //will be connected to PE3 *** // 
+#define BTN_0 0x10 //will be connected to PE4 *** //Shuffle
 
 
 //-------------------------GPIO PORT F-------------------------
@@ -93,6 +97,7 @@
 //-----------------------------NVIC-----------------------------
 #define NVIC_EN0_R              (*((volatile unsigned long *)0xE000E100))// NVIC_ENe_R: Interrupt Set Enable Register for e = register 0-3. L3Sl70
 #define NVIC_PRI7_R             (*((volatile unsigned long *)0xE000E41C))// ADDR OF NVIC Interrupt Priority Register: L3S56
+#define NVIC_PRI1_R             (*((volatile unsigned long *)0xE000E404))// ADDR OF NVIC Intrrupt Priority Register
 
 volatile unsigned long SW1; //input from PF4  ***
 volatile unsigned long SW2; //input from PF0  ***	
@@ -121,6 +126,7 @@ void timer2A_800mSdelay(int ttime);
 int selReadingType(void);
 void showCardOnLCD(struct TarotCard *card, enum Orientation o);
 void scrollMeaningStep(void);
+void squiggle(void);
 
 int typeIndex = 0;
 char rType[3][10] = {"*past*","*present*","*future*"};
@@ -149,7 +155,7 @@ void Timer0A_WaitMs(unsigned long ms) {
 		}
 }
 
-//-----------------------------SUBROUTINES TO INITIALIZE timer___, timer2, PORTE, PORTF & LCD-----------------------------	
+//-----------------------------SUBROUTINES TO INITIALIZE timer0A, timer2A, PORTE, PORTF & LCD-----------------------------	
 void timer2_InIt(void){
 	  SYSCTL_RCGCTIMER_R |= 0x04;  // ENABLE CLOCK FOR  TIMER 2
     TIMER2_CTL_R &= ~0x01;         /* disable Timer2A before initialization */
@@ -163,17 +169,18 @@ void timer2_InIt(void){
 	//	TIMER2_TAPR_R = 0; // Prescalar value here is multiplying by 2 (1+1).. Can extend the cycle time max 256 times
 }
 
-void PortE_Init(void){
+//*** NARROW THIS DOWN!!!***
+void PortE_Init(void){ 
 	SYSCTL_RCGC2_R |= 0x0000010;     // 1) E clock
 	volatile unsigned long delay;
 	delay = SYSCTL_RCGC2_R; //reading register adds a delay
-  GPIO_PORTE_CR_R = 0x1E;           // Allow changes to PE4-0 
+  GPIO_PORTE_CR_R = 0x1E;           // Allow changes to PE4-0 ***
   GPIO_PORTE_AMSEL_R = 0x00; //disable analog functions. 	
 	GPIO_PORTE_AFSEL_R = 0x00; //no alternative functions. 
 	//GPIO_PORTE_PCTL_R = 0x00000000;   // 4) GPIO clear bit PCTL 
-	GPIO_PORTE_DIR_R &= ~0x1E; //0x1E = 0001 1110 Connected pins are E1-E4; INPUT 
-	GPIO_PORTE_PUR_R = 0x1E;          // enable pullup resistors on PE1-PE4
-  GPIO_PORTE_DEN_R = 0x1E;          // enable digital pins PE1-PE4
+	GPIO_PORTE_DIR_R &= ~0x1E; //0x1E = 0001 1110 Connected pins are E1-E4; INPUT ***
+	GPIO_PORTE_PUR_R = 0x1E;          // enable pullup resistors on PE1-PE4 ***
+  GPIO_PORTE_DEN_R = 0x1E;          // enable digital pins PE1-PE4 ***
 	
 }
 
@@ -191,7 +198,7 @@ volatile unsigned long delay;
   GPIO_PORTF_PUR_R = 0x11;          // enable pullup resistors on PF4,PF0       
   GPIO_PORTF_DEN_R = 0x1F;          // 7) enable digital pins PF4-PF0    
   NVIC_EN0_R = 0x40000000;        /* 4 0100 sets bit 30 to 1 Enables interrupt 30 for PortF in NVIC enabling PF0-PF4 */  
-	NVIC_PRI7_R = (NVIC_PRI7_R & 0xFF1FFFFF) | 0x00A00000; /* Clrs bits 23:21 PField for IRQ 30 PortF A = 1010 makes b23-21:101 = 2^2+1 priority 5 L3SL56 */
+	NVIC_PRI7_R = (NVIC_PRI7_R & 0xFF1FFFFF) | 0x00600000; /* Clrs bits 23:21 PField for IRQ 30 PortF 6 = 0110 makes b23-21:011 = 2^1+2^0 priority 3 Lect3Slide56 */
 
 }//1111 1111 1111 1111 1111 1111 1100 1111
 
@@ -363,7 +370,7 @@ struct TarotCard deck[] = {
 
 const int deckSize = sizeof(deck) / sizeof(deck[0]); // entire deck size/size of card
 
-// Fisher–Yates shuffle
+// Fisher?Yates shuffle
 void shuffleDeck(struct TarotCard deck[],int deckSize_0) {
     for (int i = deckSize_0 - 1; i > 0; --i) {
         int j = rand() % (i + 1);
@@ -405,7 +412,25 @@ int main() {
 				
 				struct TarotCard drawn = deck[0];
 				enum Orientation o = (rand() % 2 == 0) ? Upright : Reversed;
-				
+				squiggle();
+				LCD_Cmd(0x01);  // clear display
+				LCD_Cmd(0x80+1);	// first row , center-ISH
+				LCD_string("DIVINING YOUR");
+				timer2A_800mSdelay(1);
+				char buffer[32];
+			  sprintf(buffer,"         %s   ", rType[type]);	
+				//LCD_Cmd(0xC0+5); 
+		
+				for (int i = 0; buffer[i]!='\0';i++){
+						LCD_Cmd(0xC0);//reset to start of line 2
+						LCD_string("                ");   
+						LCD_Cmd(0xC0);//back to start of line 2 
+						LCD_string(&buffer[i]); //print substring starting at i
+						Timer0A_WaitMs(400);;// delay between shifts
+				}
+				Timer0A_WaitMs(300);
+				//timer2A_800mSdelay(3);
+			
 				showCardOnLCD(&drawn, o);
 				Timer0A_WaitMs(200); //debounce
 			}
@@ -417,7 +442,7 @@ int main() {
 		}
 }	
 		
-void timer2A_800mSdelay(int ttime) { // LIKE FOR LCD PACING 
+void timer2A_800mSdelay(int ttime) { //  
 // 100 mSEC 
     for(int i = 0; i < ttime; i++) { 
 			TIMER2_CTL_R |=0x01; //Enable the timer
@@ -440,7 +465,7 @@ int selReadingType(void){
 						//LCD_Cmd(0x01); // Clear display 
 						LCD_Cmd(0xC0); //Move cursor to top of 2nd Row 
 						LCD_string("                "); // 16 SPACES TO CLEAR 2nd LINE
-						LCD_Cmd(0xC0); //Move cursor to top of 2md row
+						LCD_Cmd(0xC0); //Move cursor to top of 2nd row
 						LCD_string(rType[typeIndex]);	
 						Timer0A_WaitMs(150);
 					}
@@ -492,4 +517,17 @@ void scrollMeaningStep(void) {
 			char c = (index < len) ? currentMeaning[index] : ' ';
 			LCD_write_char(c);
 		}
+}
+void squiggle(void){
+	for(int col = 0; col<16; col++){
+		LCD_Cmd(0x01); //clear display
+		Timer0A_WaitMs(150);
+		if (col%2 == 0){
+			LCD_Cmd(0x80 + col); //On 1st row
+		}else{
+			LCD_Cmd(0xC0 + col); //On 2nd Row
+		}
+		LCD_string("*");
+		Timer0A_WaitMs(150);
+	}
 }
