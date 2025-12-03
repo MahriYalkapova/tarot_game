@@ -74,7 +74,7 @@
 #define GPIO_PORTB_AMSEL_R      (*((volatile unsigned long *)0x40005528))
 #define GPIO_PORTB_PCTL_R       (*((volatile unsigned long *)0x4000552C))
 
-// -------------------------GPIO PORT A (OFF-BOARD SWITCHES)-------------------------
+// -------------------------GPIO PORT A-------------------------
 #define GPIO_PORTA_DATA_R       (*((volatile unsigned long *)0x400043FC))
 #define GPIO_PORTA_DIR_R        (*((volatile unsigned long *)0x40004400))
 #define GPIO_PORTA_AFSEL_R      (*((volatile unsigned long *)0x40004420))
