@@ -1,0 +1,582 @@
+//TCES430 FINAL PROJECT MAHRI AND JULIE ANN 
+
+//TAROT CARD GAME TO BE CONNECTED TO TM4C123GH6PM MP 
+//// TAROT CARD GAME TO BE CONNECTED TO TM4C123GH6PM MP 
+// Shuffles an array of struct Tarot Cards that hold the card name and upright meaning 
+// as well as the meaning of reversed presentation, and reveals a randomly drawn card. 
+
+// Implements 32bit Timer2A for 800mS & Timer0A
+// Implements SW1 via PC4 to Scroll through Reading Types 
+// & SW2 via PC5 to select reading type
+// -- PORTC HAS PRIORITY 4--
+// after selecting reading type,
+// IMPLEMENTS SOUND SENSOR via PE4 
+// to shuffle deck and draw card when player claps.  
+
+
+#include "tm4c123gh6pm.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+
+#define clear_display 0x01
+#define return_cursor 0x02
+#define move_cursor_right 0x06
+#define move_cursor_left 0x08
+#define display_right 0x1C
+#define display_left 0x18
+#define cursor_blink 0x0F
+#define cursor_off 0x0C
+#define cursor_on 0x0E
+#define set_4bit 0x28
+#define set_8bit 0x38
+#define entry_mode 0x06
+#define func_8bit 0x32
+#define set5x7font 0x20
+#define firstRow 0x80 //0x00
+#define secondRow 0xC0 //0x40
+
+#define BTN_1  (GPIO_PORTC_DATA_R & 0x10)  // PC4
+#define BTN_2  (GPIO_PORTC_DATA_R & 0x20)  // PC5
+//#define BTN_3 0x10 //will be connected to PE4 *** //Shuffle
+
+
+
+#define SOUND_SENSOR 0x10
+
+// -------------------------GPIO PORT B-------------------------
+#define GPIO_PORTB_DATA_R       (*((volatile unsigned long *)0x400053FC))
+#define GPIO_PORTB_DIR_R        (*((volatile unsigned long *)0x40005400))
+#define GPIO_PORTB_AFSEL_R      (*((volatile unsigned long *)0x40005420))
+#define GPIO_PORTB_PUR_R        (*((volatile unsigned long *)0x40005510))
+#define GPIO_PORTB_DEN_R        (*((volatile unsigned long *)0x4000551C))
+#define GPIO_PORTB_LOCK_R       (*((volatile unsigned long *)0x40005520))
+#define GPIO_PORTB_CR_R         (*((volatile unsigned long *)0x40005524))
+#define GPIO_PORTB_AMSEL_R      (*((volatile unsigned long *)0x40005528))
+#define GPIO_PORTB_PCTL_R       (*((volatile unsigned long *)0x4000552C))
+
+//-------------------------GPIO PORT C-------------------------
+// PORTC 0x4000 6000 to 0x4000 6FFF
+#define GPIO_PORTC_DATA_R       (*((volatile unsigned long *)0x400063FC))
+#define GPIO_PORTC_DIR_R        (*((volatile unsigned long *)0x40006400))
+#define GPIO_PORTC_AFSEL_R      (*((volatile unsigned long *)0x40006420))
+#define GPIO_PORTC_PUR_R        (*((volatile unsigned long *)0x40006510))
+#define GPIO_PORTC_DEN_R        (*((volatile unsigned long *)0x4000651C))
+#define GPIO_PORTC_LOCK_R       (*((volatile unsigned long *)0x40006520))
+#define GPIO_PORTC_CR_R         (*((volatile unsigned long *)0x40006524))
+#define GPIO_PORTC_AMSEL_R      (*((volatile unsigned long *)0x40006528))
+#define GPIO_PORTC_PCTL_R       (*((volatile unsigned long *)0x4000652C))
+#define SYSCTL_RCGC2_R          (*((volatile unsigned long *)0x400FE108)) // RUN MODE CLK GATING FOR GPIO; Configure clock
+
+
+
+//-------------------------GPIO PORT E-------------------------
+///ADDING PORTE INTERRUPT:  0x4002 4000 - 4002 4FFF
+#define GPIO_PORTE_DATA_R       (*((volatile unsigned long *)0x400243FC))   /// 40024000+3FC
+#define GPIO_PORTE_DIR_R        (*((volatile unsigned long *)0x40024400))   //// 40024000+400...
+#define GPIO_PORTE_AFSEL_R      (*((volatile unsigned long *)0x40024420))   
+#define GPIO_PORTE_PUR_R        (*((volatile unsigned long *)0x40024510))
+#define GPIO_PORTE_DEN_R        (*((volatile unsigned long *)0x4002451C)) 
+#define GPIO_PORTE_CR_R         (*((volatile unsigned long *)0x40024524))
+#define GPIO_PORTE_AMSEL_R      (*((volatile unsigned long *)0x40024528))
+#define GPIO_PORTE_PCTL_R       (*((volatile unsigned long *)0x4002452C))
+
+
+/*//-------------------------GPIO PORT F-------------------------
+#define GPIO_PORTF_DATA_R       (*((volatile unsigned long *)0x400253FC))// DATA REGISTER Read/Write PF0-PF7
+#define GPIO_PORTF_DIR_R        (*((volatile unsigned long *)0x40025400))// DIRECTION REG: 1 for OUTPUT 0 for INPUT
+#define GPIO_PORTF_AFSEL_R      (*((volatile unsigned long *)0x40025420))// ALT FUNC SEL: 
+#define GPIO_PORTF_PUR_R        (*((volatile unsigned long *)0x40025510))// PULL UP RESISTOR ENABLE: enable pullup resistor for bits w/ 1 
+#define GPIO_PORTF_DEN_R        (*((volatile unsigned long *)0x4002551C))// DIGITAL ENABLE
+#define GPIO_PORTF_LOCK_R       (*((volatile unsigned long *)0x40025520))// LOCK REGISTER: Unlock PF0
+#define GPIO_PORTF_CR_R         (*((volatile unsigned long *)0x40025524))// COMMIT REGISTER: Allow changes to PF#: for bit# with 1; so PF2 &PF5
+#define GPIO_PORTF_AMSEL_R      (*((volatile unsigned long *)0x40025528))// ANALOG MODE SELECT: to Diasable/Enable Analog Function
+#define GPIO_PORTF_PCTL_R       (*((volatile unsigned long *)0x4002552C))//PORT CONTROL: Pin Funct Mux
+
+*/
+
+//TIMER0 (1ms)
+#define TIMER0_CFG_R (*((volatile unsigned long *)0x40030000))
+#define TIMER0_TAMR_R (*((volatile unsigned long *)0x40030004))
+#define TIMER0_CTL_R (*((volatile unsigned long *)0x4003000C))
+#define TIMER0_RIS_R (*((volatile unsigned long *)0x4003001C))
+#define TIMER0_ICR_R (*((volatile unsigned long *)0x40030024))
+#define TIMER0_TAILR_R (*((volatile unsigned long *)0x40030028))
+#define TIMER0_TAPR_R (*((volatile unsigned long *)0x40030038))
+#define SYSCTL_RCGCTIMER_R (*((volatile unsigned long *)0x400FE604))
+
+//----------------------------TIMER2--------------------------- CURRENTLY DEFINED FOR 2 SECOND DELAY
+#define TIMER2_CFG_R            (*((volatile unsigned long *)0x40032000))// CONFIGURATION (16/32 Bit)
+#define TIMER2_TAMR_R           (*((volatile unsigned long *)0x40032004))// MODE ( Periodic, One Shot etc.)  //8 for 
+#define TIMER2_CTL_R            (*((volatile unsigned long *)0x4003200C))// CONTROL EN/DISABLE
+#define TIMER2_RIS_R            (*((volatile unsigned long *)0x4003201C))// RAW INTERRUPT STATUS 
+#define TIMER2_ICR_R            (*((volatile unsigned long *)0x40032024))// INTERRUPT CLR
+#define TIMER2_TAILR_R          (*((volatile unsigned long *)0x40032028))// INTERVAL LOAD VAL
+#define TIMER2_TAPR_R           (*((volatile unsigned long *)0x40032038))// PRESCALAR  
+//#define TIMER2_IMR_R          (*((volatile unsigned long *)0x40032018))// FOR INTERRUPT MASK
+#define SYSCTL_RCGCTIMER_R      (*((volatile unsigned long *)0x400FE604))// CLOCK GATING FOR TIMERS
+#define TIMER2_TAV_R            (*((volatile unsigned long *)0x40032050))
+
+//-----------------------------NVIC-----------------------------
+#define NVIC_EN0_R              (*((volatile unsigned long *)0xE000E100))// NVIC_ENe_R: Interrupt Set Enable Register for e = register 0-3. L3Sl70
+//#define NVIC_PRI7_R             (*((volatile unsigned long *)0xE000E41C))// ADDR OF NVIC Interrupt Priority Register: L3S56
+#define NVIC_PRI0_R 						(*((volatile unsigned long *)0xE000E400))
+#define NVIC_PRI1_R             (*((volatile unsigned long *)0xE000E404))// ADDR OF NVIC Intrrupt Priority Register
+
+volatile unsigned long SW1; //input from PC4  ***
+volatile unsigned long SW2; //input from PC5  ***	
+
+
+// Orientation enum
+enum Orientation { Upright, Reversed };
+
+// TarotCard struct with fixed-size strings
+struct TarotCard {
+    const char *name;
+    const char *upright;
+    const char *reversed;
+};
+
+void LCD_init(void);
+void LCD_Cmd(unsigned char cmd);
+void LCD_write_char(unsigned char data);
+void LCD_write_nibble(unsigned char data, unsigned char cmd);
+void LCD_string(const char *str);
+void timer0A_Init(void);
+void timer0A_WaitMs(unsigned long ms);
+void timer2_InIt(void);
+void PortC_Init(void);
+void portE_Init(void);
+void PortF_Init(void);
+void timer2A_800mSdelay(int ttime);
+int selReadingType(void);
+void showCardOnLCD(struct TarotCard *card, enum Orientation o);
+void scrollMeaningStep(void);
+void squiggle(void);
+
+int typeIndex = 0;
+char rType[3][10] = {"*past*","*present*","*future*"};
+
+//for side scrolling the meaning
+const char *currentMeaning = 0;
+int scrollOffset = 0;
+
+//timer0A
+void Timer0A_Init(void) {
+		SYSCTL_RCGCTIMER_R |= 0x01;  // ENABLE CLOCK FOR  TIMER 0
+    TIMER0_CTL_R = 0x00;         /* disable Timer0A before initialization */
+    TIMER0_CFG_R = 0x00;         /* 32-bit option */
+	  TIMER0_TAMR_R = 0x02;        /* B: bit [1][0]:00 Reset, 01 for 1 shot mode, 10 for periodic mode, 11 for capture mode; & bit [4]: 0 for down-counter, 1 for up counter */
+	  TIMER0_TAILR_R = 80000-1; 	 // 80 MHz / 80,000 = 1kHz => 1ms
+		TIMER0_ICR_R = 0x01;          /* clear the Timer0A timeout flag (BIT 1) after each cycle*/
+	  TIMER0_CTL_R |= 0x01;        /* enable Timer 0A  after initialization (BIT 1) */
+	//	TIMER2_TAPR_R = 0; // Prescalar value here is multiplying by 2 (1+1).. Can extend the cycle time max 256 times
+}
+
+void Timer0A_WaitMs(unsigned long ms) {
+		for (unsigned long i = 0; i < ms; i++) {
+			while ((TIMER0_RIS_R & 0x01) == 0) {}
+			TIMER0_ICR_R = 0x01;
+		}
+}
+
+//-----------------------------SUBROUTINES TO INITIALIZE timer0A, timer2A, PORTE, PORTF & LCD-----------------------------	
+void timer2_InIt(void){
+	  SYSCTL_RCGCTIMER_R |= 0x04;  // ENABLE CLOCK FOR  TIMER 2
+    TIMER2_CTL_R &= ~0x01;         /* disable Timer2A before initialization */
+    TIMER2_CFG_R = 0x00;         /* 32-bit option */
+	  TIMER2_TAMR_R = 0x02;        /* B: bit [1][0]:00 Reset, 01 for 1 shot mode, 10 for periodic mode, 11 for capture mode; & bit [4]: 0 for down-counter, 1 for up counter */
+  //  TIMER2_TAILR_R = 100000000= - 1; /* Timer B interval load value register */ // SETS 2 SEC CNTDWN PERIOD Assuming processor frequency 50 MHz default. However, frequency can be max 80 MHz
+	  TIMER2_TAILR_R = 64000000-1; /* Timer A interval load value register Defines Timer Period */ //SYSCLK: 80MHz.-> 64000000/80Mhz =.8s to reload.  
+		TIMER2_ICR_R = 0x01;          /* clear the Timer2A timeout flag (BIT 1) after each cycle*/
+    //TIMER2_TAV_R = 0; // RESET COUNTER WE WANT THIS T BEFORE THE SHUFFLE 
+	  TIMER2_CTL_R |= 0x01;        /* enable Timer 2A  after initialization (BIT 1) */
+	//	TIMER2_TAPR_R = 0; // Prescalar value here is multiplying by 2 (1+1).. Can extend the cycle time max 256 times
+}
+
+//INITIALIZE PORT C  !!FINISH AND TEST
+void PortC_Init(void){
+	volatile unsigned long delay;
+  SYSCTL_RCGC2_R |= 0x04;     // 1) C clock
+  delay = SYSCTL_RCGC2_R;           // reading register adds a delay   
+  
+  GPIO_PORTC_CR_R = 0x30;           // allow changes to PC4-PC5       
+  GPIO_PORTC_AMSEL_R = 0x00;        // 3) disable analog function  
+  GPIO_PORTC_DIR_R &= ~0x30;          // 5) PC4,PC5 input,  output 0b00110000  
+  GPIO_PORTC_AFSEL_R = 0x00;        // 6) no alternate function
+  GPIO_PORTC_PUR_R |= 0x30;          // enable pullup resistors on PC4 & PC5,      
+  GPIO_PORTC_DEN_R |= 0x30;          // 7) enable digital pins PD2 & PD1   
+	GPIO_PORTC_IS_R &= ~0x30;       /*  PC4&5 edge-sensitive */
+  GPIO_PORTC_IBE_R &= ~0x30;      /*  PC4&5 is not both edges */
+  GPIO_PORTC_IEV_R &= ~0x30;      /*  PC4&5 falling edge event */
+  GPIO_PORTC_ICR_R = 0x30;        /*  Clear flag4&5 */
+  GPIO_PORTC_IM_R |= 0x30;        /*  arm interrupt on PC4&5 */
+	NVIC_EN0_R |= 0x00000004; 		/*enables interrupt for port c in nvic*/
+  NVIC_PRI0_R = (NVIC_PRI0_R & 0xFF1FFFFF) | 0x00800000; /*  priority 4 */
+
+	
+	} 
+//INITIALIZE PORT E 
+void PortE_Init(void){ 
+	SYSCTL_RCGC2_R |= 0x0000010;     // 1) E clock
+	//volatile unsigned long delay;
+	//delay = SYSCTL_RCGC2_R; //reading register adds a delay
+  GPIO_PORTE_CR_R = 0x10;           // Allow changes to PE4-0 ***
+  GPIO_PORTE_AMSEL_R = 0x00; //disable analog functions. 	
+	GPIO_PORTE_AFSEL_R = 0x00; //no alternative functions. 
+	//GPIO_PORTE_PCTL_R = 0x00000000;   // 4) GPIO clear bit PCTL 
+	GPIO_PORTE_DIR_R &= ~0x10; //~0x10 : 1110 1111 Connected pins are E4; 0 for INPUT ***
+	GPIO_PORTE_PUR_R = 0x00;          // disable all pullup resistors ***
+  GPIO_PORTE_DEN_R = 0x10;          // enable digital pins PE1-PE4 ***
+	
+}
+/*
+//INITIALIZE PORT F 
+void PortF_Init(void){
+volatile unsigned long delay;
+  SYSCTL_RCGC2_R |= 0x00000020;     // 1) F clock
+  delay = SYSCTL_RCGC2_R;           // reading register adds a delay   
+  GPIO_PORTF_LOCK_R = 0x4C4F434B;   // 2) unlock PortF PF0  
+  GPIO_PORTF_CR_R = 0x11;           // allow changes to PF4-0       
+  GPIO_PORTF_AMSEL_R = 0x00;        // 3) disable analog function
+//  GPIO_PORTF_PCTL_R = 0x00000000; // 4) GPIO clear bit PCTL  
+  GPIO_PORTF_DIR_R = 0x0E;          // 5) PF4,PF0 input, PF3,PF2,PF1 output 0b01110   
+  GPIO_PORTF_AFSEL_R = 0x00;        // 6) no alternate function
+  GPIO_PORTF_PUR_R = 0x11;          // enable pullup resistors on PF4,PF0       
+  GPIO_PORTF_DEN_R = 0x11;          // 7) enable digital pins PF4-PF0    
+  NVIC_EN0_R |= 0x40000000;        /* 4 0100 sets bit 30 to 1 Enables interrupt 30 for PortF in NVIC enabling PF0-PF4 */  
+	//NVIC_PRI7_R = (NVIC_PRI7_R & 0xFF1FFFFF) | 0x00600000; /* Clrs bits 23:21 PField for IRQ 30 PortF 6 = 0110 makes b23-21:011 = 2^1+2^0 priority 3
+//}*/
+
+void LCD_init(void){
+		SYSCTL_RCGC2_R |= 0x02;  //B clock
+		GPIO_PORTB_DIR_R = 0xFF; //LCD SWITCHES VSS-E and D4-K***
+		GPIO_PORTB_DEN_R = 0xFF;
+		
+		LCD_Cmd(0x20);  // set 5x7 font
+		LCD_Cmd(0x28);	// set 4-bit
+		LCD_Cmd(0x06);	// move cursor right
+		LCD_Cmd(0x01);	// clear display
+		LCD_Cmd(0x0F);	// cursor blink
+}
+
+void LCD_Cmd(unsigned char cmd){
+		LCD_write_nibble(cmd &0xF0, 0);  // 0=command, RS =0
+		LCD_write_nibble(cmd << 4, 0);
+		
+		// if lowest 4-bit data takes more time
+		if(cmd < 4){
+				Timer0A_WaitMs(2); //delay
+				 
+		}
+		else{ 
+				Timer0A_WaitMs(1); //delay
+		}
+	}		
+
+void LCD_write_nibble(unsigned char data, unsigned char cmd){
+		data = data & 0xF0;	// D4-7 data/command
+		cmd = cmd & 0x0F;	// D0-3 control , RS =0 for control, RS =1 for data
+		GPIO_PORTB_DATA_R = data | cmd | 0x04;  // send data and command to LCD
+		GPIO_PORTB_DATA_R |= data; // Ensuring data
+		GPIO_PORTB_DATA_R = 0; // Done writing to LCD
+}
+
+void LCD_write_char(unsigned char data){
+		LCD_write_nibble(data &0xF0, 0x01);
+		LCD_write_nibble(data << 4, 0x01);
+		Timer0A_WaitMs(1);
+}
+
+void LCD_string(const char *str){
+		int i;
+		for(i=0; str[i]!=0; i++){
+				LCD_write_char(str[i]);
+		}
+	
+}
+
+
+  
+struct TarotCard deck[] = {
+         { "Ace_of_Cups" , "renewed emotions, love, happiness",
+         "Reversed: avoiding emotions, feeling unloved, unhappy"},
+        { "Two_of_Cups" , "united, sharing, attraction, agreement",
+         "Reversed: relationship ending, separating, completing  commitments, disagreement"},
+        { "Three_of_Cups" , "togetherness, celebration, thankful, abundance",
+         "Reversed: over indulgence, excess, selfish, withdrawn"},
+        { "Four_of_Cups" ,  "struggling with feelings of apathy, complacency, and malcontent.",
+         "Reversed: the emotional or mental breakthrough needed is at hand."},
+        { "Five_of_Cups" , "grieving a loss and struggling to move forward",
+         "Reversed: Recovery is on the horizon"},
+        { "Six_of_Cups" , "a reunion with someone familiar",
+         "Reversed: clinging to the past, unable to let go"},
+        { "Seven_of_Cups" , "you are a dreamer, but unsure what you really want",
+         "Reversed: The beginning or end of a dream"},
+        { "Eight_of_Cups" , "Moving on and gaining a new perspective",
+         "Reversed: fear of the unknown and leaving what is comfortable"},
+        { "Nine_of_Cups" , "The universe is listening. Make a wish",
+         "Reversed: Nothing seems like it is enough"},
+        { "Ten_of_Cups" , "There is positive energy and joy in life, notice and cherish it",
+         "Reversed: Family troubles shaking your foundation"},
+        { "Page_of_Cups" , "New love and romance",
+         "Reversed: A rejection"},
+        { "Knight_of_Cups" , "Allow the heart to lead",
+         "Reversed: A seduction not worth the risk"},
+        { "Queen_of_Cups:" ,"Emotions are your guide",
+         "Reversed: Disconnected from your emotions"},
+        { "King_of_Cups" , "A strong capacity for love, patience, sensitivity",
+        "Reversed: Emotionally unavailable, a harmful addiction"},
+        { "Ace_of_Swords" , "Success, strength, new beginnings",
+         "Reversed: Confusion, obstacles, rethinking"},
+        { "Two_of_Swords" , "Indecisive, Overwhelmed, Feeling Stuck",
+         "Reversed: Decisions, Change, Moving Forward"},
+        { "Three_of_Swords" , "Wounds that run deep, life becoming strenuous",
+         "Reversed: The dark cloud lifts, there is sun at the end of the storm"},
+         { "Four_of_Swords" , "Time to rest. A period of contemplation",
+          "Reversed: Anxiety over stagnation"},
+        { "Five_of_Swords" , "A shady and underhanded victory",
+         "Reversed:Lies revealed, the end of a conflict"},
+        { "Six_of_Swords" , "A period of transition. Do not look back",
+         "Reversed: Fear undermines your growth"},
+        { "Seven_of_Swords" , "Getting away with something, moving stealthily",
+         "Reversed: Caught in the act, face repentance"},
+        { "Eight_of_Swords" , "A lack of control paralyzes",
+         "Reversed: Freedom, escape from unwanted circumstances"},
+        { "Nine_of_Swords" , "Depression and sleeplessness that affects quality of life.",
+         "Reversed: Fears faced, a light at the of the tunnel"},
+         { "Ten_of_Swords" , "An ending. A failure. Ruination",
+          "Reversed: A wound that heals, a fresh start"},
+        { "Page_of_Swords" , "Important news and the truth at hand.",
+         "Reversed: Inability to face the truth, cowardice"},
+        { "Knight_of_Swords" , "Desire to be heard at any cost",
+         "Reversed: Assertiveness that comes off as cruelty"},
+        { "Queen_of_Swords" , "Logic prioritized over emotions",
+         "Reversed: Lack of empathy, negativity"},
+        { "King_of_Swords" , "The head rules the heart",
+         "Reversed: Ruthlessness in approach and corruption"},
+        { "Ace_of_Pentacles" , "Prosperity, Manifesting, Achievements",
+         "Reversed: Lack of planning, insecurity,  carelessness"},
+        { "Two_of_Pentacles" , "Possibilities, Finding Stability, Responsibility",
+         "Reversed: Instability, Overwhelmed, Inflexible"},
+        { "Three_of_Pentacles" , "Collaboration is key",
+         "Reversed: Lack of commitment, animosity with others"},
+        { "Four_of_Pentacles" , "Financial Stability, hoarding what you hold dear",
+         "Reversed: Financial insecurity"},
+        { "Five_of_Pentacles" , "A difficult change, a financial loss",
+         "Reversed:  A financial shift"},
+         { "Six_of_Pentacles" , "Generosity in money, assistance, love",
+          "Reversed: Cutting others off, holding back"},
+        { "Seven_of_Pentacles" , "A watched pot never boils",
+         "Reversed: Giving up too soon"},
+        { "Eight_of_Pentacles" , "Satisfaction found in hard work",
+         "Reversed: Lack of ambition, hung up on the details"},
+        { "Nine_of_Pentacles" , "Gratitude for the many pleasures life has to offer",
+         "Reversed: We covet what we see"},
+         { "Ten_of_Pentacles" , "A signifier of wealth",
+         "Reversed: A signifier of a financial loss"},
+        { "Page_of_Pentacles" , "Seeds planted in search of a new venture",
+         "Reversed: Failed investments"},
+        { "Knight_of_Pentacles" , "Responsibility for a situation or project",
+         "Reversed: Refusing responsibility"},
+        { "Queen_of_Pentacles" , "Home is where the heart is",
+         "Reversed: Shallow and material"},
+        { "King_of_Pentacles" , "Protection and accumulation. The midas touch",
+         "Reversed: Attached strings, abuse of power"},
+         { "Ace_of_Wands" , "New beginnings, Things falling into place, See the potential, inspiration" ,
+         "Reversed: Lacking passion or direction, difficulty seeing opportunities or the good, desire to fix things"},
+        { "Two _of_Wands" , "Growth, Success, Ambition, Waiting, Planning",
+        "Reversed: Delays, Losing interest, doubt, overwhelm, different opinions, Abuse of power"},
+        { "Three_of_Wands" , "New opportunities, Success, progress, new goals, hope" ,
+         "Reversed: unrealistic, feeling blocked, delays or missed opportunities, let go of what is not working"},
+        { "Four_of_Wands" , "Harmony and joy manifested, triumphant return",
+         "Reversed: a bittersweet forward movement"},
+        { "Five_of_Wands" , "Competition nurtures the soul",
+         "Reversed: A struggle comes to an end"},
+        { "Six_of_Wands" , "A victory at hand",
+         "Reversed: A fall from grace"},
+        { "Seven_of_Wands" , "Defending beliefs, standing up",
+         "Reversed: Overcome by the enemy"},
+        { "Eight_of_Wands" , "Whirlwind progress",
+         "Reversed: Stalled progress"},
+        { "Nine_of_Wands" , "A lesson learned",
+         "Reversed: Have faith in the universe"},
+        { "Ten_of_Wands" , "Burdened beyond compare",
+        "Reversed: Liberation"},
+        { "Page_of_Wands" , "A spark ignited will flourish",
+        "Reversed: Impulsive, lackluster decision"},
+        { "Knight_of_Wands" , "Swift action, moving forward with confidence",
+        "Reversed: Burns bright but fades fast"},
+        { "Queen_of_Wands" , "Keeper of the flame, manifest",
+         "Reversed: Waning passion, a fading spark"},
+        { "King_of_Wands" , "Power, leadership, Fire",
+         "Reversed: The fire burns out"}
+};
+
+const int deckSize = sizeof(deck) / sizeof(deck[0]); // entire deck size/size of card
+
+// Fisher?Yates shuffle
+void shuffleDeck(struct TarotCard deck[],int deckSize_0) {
+    for (int i = deckSize_0 - 1; i > 0; --i) {
+        int j = rand() % (i + 1);
+        struct TarotCard temp = deck[i];
+        deck[i] = deck[j];
+        deck[j] = temp;
+    }
+}
+ 
+int main() {
+		Timer0A_Init();
+		LCD_init();
+		timer2_InIt();
+	  PortC_Init();  // Call initialization of port PC4 and PC5 
+	  PortE_Init();	 // CALL INITIALIZATION OF PORTS E1-E4;
+	  LCD_Cmd(0x01);  // clear display
+		LCD_Cmd(0x80);	// first row
+		Timer0A_WaitMs(200);
+		LCD_string("WELCOME TO");
+		Timer0A_WaitMs(500);
+	  LCD_Cmd(0xC0); //2nd Row
+		LCD_string("430 Mystic Tarot");
+		timer2A_800mSdelay(2); 
+		LCD_Cmd(0x01);  // clear display
+		LCD_Cmd(0x80);	// first row
+	
+		unsigned long sound = GPIO_PORTE_DATA_R & SOUND_SENSOR;
+    int lastClap = (sound ? 1 : 0);  // seed with real state
+	
+			while (1) {
+				selReadingType();
+			
+				unsigned long clap = GPIO_PORTE_DATA_R & SOUND_SENSOR;
+				int clapNow = (clap ? 1 : 0);
+		
+				//if ((GPIO_PORTE_DATA_R & BTN_0) == 0){ // IF BTN0 PRESSED SHUFFLE INCOMPLETE BUT DO THE THINGS> GIVE READING ON LCD !!! 
+				// from 1 -> 0
+				if (lastClap == 1 && clapNow == 0) {	
+				srand(TIMER2_TAV_R); //read the value in timer2 and use it to generate random
+					shuffleDeck(deck,deckSize);
+				
+					struct TarotCard drawn = deck[0];
+					enum Orientation o = (rand() % 2 == 0) ? Upright : Reversed;
+					squiggle();
+					LCD_Cmd(0x01);  // clear display
+					LCD_Cmd(0x80+1);	// first row , center-ISH
+					LCD_string("DIVINING YOUR");
+					timer2A_800mSdelay(1);
+					char buffer[32];
+			  sprintf(buffer,"         %s   ", rType[typeIndex]);	
+				//LCD_Cmd(0xC0+5); 
+		
+				for (int i = 0; buffer[i]!='\0';i++){
+						LCD_Cmd(0xC0);//reset to start of line 2
+						LCD_string("                ");   
+						LCD_Cmd(0xC0);//back to start of line 2 
+						LCD_string(&buffer[i]); //print substring starting at i
+						Timer0A_WaitMs(400);;// delay between shifts
+				  }
+				Timer0A_WaitMs(300);
+				//timer2A_800mSdelay(3);
+			
+				showCardOnLCD(&drawn, o);
+				Timer0A_WaitMs(200); //debounce
+			}
+			
+			lastClap = clapNow;
+			
+			//side scroll every 250ms
+			Timer0A_WaitMs(250);
+			scrollMeaningStep();
+			
+		}
+}	
+		
+void timer2A_800mSdelay(int ttime) { //  
+// 100 mSEC 
+    for(int i = 0; i < ttime; i++) { 
+			TIMER2_CTL_R |=0x01; //Enable the timer
+			while ((TIMER2_RIS_R & 0x01) == 0);      /* wait for Timer2 timeout flag */
+        TIMER2_ICR_R = 0x01;      /* clear the Timer2 timeout flag */
+    }
+}
+
+int selReadingType(void){
+	LCD_Cmd(0x01); // Clear display 
+	Timer0A_WaitMs(10);
+	LCD_string("Sel Reading type");
+	LCD_Cmd(0xC0);
+	LCD_string(rType[typeIndex]);	// start with Past
+	while(1){ 
+		 SW1 = GPIO_PORTC_DATA_R&0x10;  // read PC4 into SW1 TO SCROLL
+		 SW2 = GPIO_PORTC_DATA_R&0x20;		//Read PC5 into SW2 TO SELECT
+				if (SW1 == 0){// SW1 to SCROLL is pushed
+					typeIndex = (typeIndex + 1)%3; 
+						//LCD_Cmd(0x01); // Clear display 
+						LCD_Cmd(0xC0); //Move cursor to top of 2nd Row 
+						LCD_string("                "); // 16 SPACES TO CLEAR 2nd LINE
+						LCD_Cmd(0xC0); //Move cursor to top of 2nd row
+						LCD_string(rType[typeIndex]);	
+						Timer0A_WaitMs(150);
+					}
+
+				if (SW2 == 0){
+					Timer0A_WaitMs(150);
+					return typeIndex; //return current choice
+				}
+			}
+}
+
+//show card & meaning
+void showCardOnLCD(struct TarotCard *card, enum Orientation o) {
+		LCD_Cmd(clear_display);
+		LCD_Cmd(firstRow);
+	
+		LCD_string(card->name);
+	
+		currentMeaning = (o == Upright) ? card -> upright : card -> reversed;
+		scrollOffset = 0;
+	
+		LCD_Cmd(secondRow);
+		for (int i = 0; i < 16; i++) {
+			char c = currentMeaning[i];
+			if (c == '\0') c = ' ';
+			LCD_write_char(c);
+		}
+}
+
+//side-scroll
+void scrollMeaningStep(void) {
+		if (currentMeaning == 0) return;
+	
+		int len = 0;
+		while (currentMeaning[len] != '\0') {
+			len++;
+		}
+		
+		if (len <= 16) return;
+		
+		scrollOffset++;
+		if (scrollOffset > (len - 16)) {
+			scrollOffset = 0;
+		}
+		
+		LCD_Cmd(secondRow);
+		for (int i = 0; i < 16; i++) {
+			int index = scrollOffset + i;
+			char c = (index < len) ? currentMeaning[index] : ' ';
+			LCD_write_char(c);
+		}
+}
+void squiggle(void){
+	for(int col = 0; col<16; col++){
+		LCD_Cmd(0x01); //clear display
+		Timer0A_WaitMs(150);
+		if (col%2 == 0){
+			LCD_Cmd(0x80 + col); //On 1st row
+		}else{
+			LCD_Cmd(0xC0 + col); //On 2nd Row
+		}
+		LCD_string("*");
+		Timer0A_WaitMs(150);
+	}
+}
