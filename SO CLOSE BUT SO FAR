@@ -1,17 +1,12 @@
 //TCES430 FINAL PROJECT MAHRI AND JULIE ANN 
 
 //TAROT CARD GAME TO BE CONNECTED TO TM4C123GH6PM MP 
-//AND LCD & BUTTONS. IMPLEMENTS 
-// 32 BIT TIMER0A & TIMER2A  
-// PORTA WITH PRIORITY 4 for 
-// PA2 TO SW1 - WHICH CONTROLS SCROLLING 
-// PA3 TO SW3 - WHICH CONTROLS SELECTION OF READING TYPE
-// ***FIX BUGGY PORT E
-// PORT E HAS PRIORITY 2 AND ENABLES ONLY PE4 WHICH CONTROLS SHUFFLE FUNCTION 
-// ***DELETE PORT F STUFF -
-// *** CLAPS TO SHUFFLE OR LOGICAL HIGH ON PORTE PIN4
-
-// PORTA SEEMS TO BE WORKING> I BROKE THE STARS AND I CANT MAKE SHUFFLE WORK 
+//AND LCD & BUTTONS. IMPLEMENTS TIMER2A and _______ 
+// ***ADD[port details, TIMER details SW Functions etc]***
+// ***NARROW DOWN PORT E & PRIORIOTIES - CLEAN UP UNUSED BUTTONS! 
+// ***DOUBLE CHECK PORT F DEFINITION - DONT LEAVE OPEN PINS THAT ARENT NEEDED. 
+// *** TIE IN  READING TYPE. GOODBYE MESSAGE? TIME OUT & TURN OFF? 
+// *** 2 CLAPS TO SHUFFLE VIA 
 
 #include "tm4c123gh6pm.h"
 #include <stdio.h>
@@ -35,23 +30,6 @@
 #define firstRow 0x80 //0x00
 #define secondRow 0xC0 //0x40
 
-
-//-------------------------GPIO PORT E-------------------------
-///ADDING PORTE INTERRUPT:  0x4002 4000 - 4002 4FFF
-#define GPIO_PORTE_DATA_R       (*((volatile unsigned long *)0x400243FC))   /// 40024000+3FC
-#define GPIO_PORTE_DIR_R        (*((volatile unsigned long *)0x40024400))   //// 40024000+400...
-#define GPIO_PORTE_AFSEL_R      (*((volatile unsigned long *)0x40024420))   
-#define GPIO_PORTE_PUR_R        (*((volatile unsigned long *)0x40024510))
-#define GPIO_PORTE_DEN_R        (*((volatile unsigned long *)0x4002451C)) 
-#define GPIO_PORTE_CR_R         (*((volatile unsigned long *)0x40024524))
-#define GPIO_PORTE_AMSEL_R      (*((volatile unsigned long *)0x40024528))
-#define GPIO_PORTE_PCTL_R       (*((volatile unsigned long *)0x4002452C))
-	
-#define GPIO_PORTE_IS_R         (*((volatile unsigned long *)0x40024404)) 
-#define GPIO_PORTE_IBE_R        (*((volatile unsigned long *)0x40024408))
-#define GPIO_PORTE_IEV_R        (*((volatile unsigned long *)0x4002440C))
-#define GPIO_PORTE_IM_R         (*((volatile unsigned long *)0x40024410)) 
-#define GPIO_PORTE_ICR_R        (*((volatile unsigned long *)0x4002441C))
 
 /*//-------------------------GPIO PORT F-------------------------
 #define GPIO_PORTF_DATA_R       (*((volatile unsigned long *)0x400253FC))// DATA REGISTER Read/Write PF0-PF7
@@ -100,9 +78,23 @@
 #define GPIO_PORTA_RIS_R        (*((volatile unsigned long *)0x40004414))	
 #define GPIO_PORTA_ICR_R        (*((volatile unsigned long *)0x4000441C))
 	
-
-
-
+//-------------------------GPIO PORT E-------------------------
+///ADDING PORTE INTERRUPT:  0x4002 4000 - 4002 4FFF
+#define GPIO_PORTE_DATA_R       (*((volatile unsigned long *)0x400243FC))   /// 40024000+3FC
+#define GPIO_PORTE_DIR_R        (*((volatile unsigned long *)0x40024400))   //// 40024000+400...
+#define GPIO_PORTE_AFSEL_R      (*((volatile unsigned long *)0x40024420))   
+#define GPIO_PORTE_PUR_R        (*((volatile unsigned long *)0x40024510))
+#define GPIO_PORTE_DEN_R        (*((volatile unsigned long *)0x4002451C)) 
+#define GPIO_PORTE_CR_R         (*((volatile unsigned long *)0x40024524))
+#define GPIO_PORTE_AMSEL_R      (*((volatile unsigned long *)0x40024528))
+#define GPIO_PORTE_PCTL_R       (*((volatile unsigned long *)0x4002452C))
+	
+#define GPIO_PORTE_IS_R         (*((volatile unsigned long *)0x40024404)) 
+#define GPIO_PORTE_IBE_R        (*((volatile unsigned long *)0x40024408))
+#define GPIO_PORTE_IEV_R        (*((volatile unsigned long *)0x4002440C))
+#define GPIO_PORTE_IM_R         (*((volatile unsigned long *)0x40024410)) 
+#define GPIO_PORTE_ICR_R        (*((volatile unsigned long *)0x4002441C))
+	
 //TIMER0 (1ms)
 #define TIMER0_CFG_R (*((volatile unsigned long *)0x40030000))
 #define TIMER0_TAMR_R (*((volatile unsigned long *)0x40030004))
@@ -229,11 +221,11 @@ GPIO_PORTE_PUR_R |= ~0x10;          // enable pullup resistors on PE4 ***
 GPIO_PORTE_DEN_R |= 0x10;          // enable digital pins PE4 ***
 GPIO_PORTE_IS_R &= ~SOUND_SENSOR; //edge sensitive
 GPIO_PORTE_IBE_R &= ~SOUND_SENSOR; //not both edges
-GPIO_PORTE_IEV_R &=  ~SOUND_SENSOR; //Falling edge
 GPIO_PORTE_ICR_R = SOUND_SENSOR; //clear pending
+GPIO_PORTE_IEV_R &=  ~SOUND_SENSOR; //Falling edge
 GPIO_PORTE_IM_R |= SOUND_SENSOR; //arm interrupt
-NVIC_EN0_R |= 0x00000010; //EnableInterrupts IRQ4 for PortE 
-NVIC_PRI1_R = (NVIC_PRI1_R & 0xFF1FFFFF) | 0x00200000; // PRIORITY LEVEL 2
+NVIC_EN0_R |= 0x00000010; //EnableInterrupts IRQ4 for PortE
+NVIC_PRI1_R = (NVIC_PRI1_R & 0xFF1FFFFF) | 0x00200000;
 }
 
 void PortA_Init(void){
@@ -489,7 +481,7 @@ while (1) {
 	//block shuffle until selReadingType is done
 	if (state == SelectingType){
 		type = selReadingType(); //block shuffle until selReadingType is 
-		state = ReadyToShuffle; 
+	//	state = ReadyToShuffle; 
 	}
 	//Define Clap to Shuffle: 
 		unsigned long clap = GPIO_PORTE_DATA_R & SOUND_SENSOR;
@@ -520,7 +512,7 @@ while (1) {
 	if(selReadingFlag){
 		type = selReadingType();
 		selReadingFlag = 0;
-		state = ReadyToShuffle;
+	
 	
 	}
 //update clap state 
@@ -562,8 +554,10 @@ Timer0A_WaitMs(150);
 }
 
 if (SW2 == 0){
-Timer0A_WaitMs(150);
-return typeIndex; //return current choice
+	Timer0A_WaitMs(150);
+	state = ReadyToShuffle;
+	shuffleFlag = 0;  
+	return typeIndex; //return current choice
 }
 }
 }
@@ -634,7 +628,7 @@ for(int col = 0; col<16; col++){
 			LCD_string(&buffer[i]); //print substring starting at i
 			Timer0A_WaitMs(400);;// delay between shifts
 
-		}	Timer0A_WaitMs(400);;// delay between shifts
+		}	Timer0A_WaitMs(400);// delay between shifts
 
 }
 
