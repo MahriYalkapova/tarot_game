@@ -1,12 +1,15 @@
 //TCES430 FINAL PROJECT MAHRI AND JULIE ANN 
 
 //TAROT CARD GAME TO BE CONNECTED TO TM4C123GH6PM MP 
-//AND LCD & BUTTONS. IMPLEMENTS TIMER2A and _______ 
-// ***ADD[port details, TIMER details SW Functions etc]***
-// ***NARROW DOWN PORT E & PRIORIOTIES - CLEAN UP UNUSED BUTTONS! 
-// ***DOUBLE CHECK PORT F DEFINITION - DONT LEAVE OPEN PINS THAT ARENT NEEDED. 
-// *** TIE IN  READING TYPE. GOODBYE MESSAGE? TIME OUT & TURN OFF? 
-// *** 2 CLAPS TO SHUFFLE VIA 
+//AND LCD & BUTTONS. IMPLEMENTS 
+// 32 BIT TIMER0A & TIMER2A  
+// PORTA WITH PRIORITY 4 for 
+// PA2 TO SW1 - WHICH CONTROLS SCROLLING 
+// PA3 TO SW3 - WHICH CONTROLS SELECTION OF READING TYPE
+// ***FIX BUGGY PORT E
+// PORT E HAS PRIORITY 2 AND ENABLES ONLY PE4 WHICH CONTROLS SHUFFLE FUNCTION 
+// ***DELETE PORT F STUFF -
+// *** CLAPS TO SHUFFLE OR LOGICAL HIGH ON PORTE PIN4
 
 // PORTA SEEMS TO BE WORKING> I BROKE THE STARS AND I CANT MAKE SHUFFLE WORK 
 
@@ -31,8 +34,7 @@
 #define set5x7font 0x20
 #define firstRow 0x80 //0x00
 #define secondRow 0xC0 //0x40
-//#define thirdRow	0x94 // 0x14, third & fourth row for using 20x4 LCD
-//#define fourthRow 0xD4  //54
+
 
 //-------------------------GPIO PORT E-------------------------
 ///ADDING PORTE INTERRUPT:  0x4002 4000 - 4002 4FFF
@@ -50,12 +52,6 @@
 #define GPIO_PORTE_IEV_R        (*((volatile unsigned long *)0x4002440C))
 #define GPIO_PORTE_IM_R         (*((volatile unsigned long *)0x40024410)) 
 #define GPIO_PORTE_ICR_R        (*((volatile unsigned long *)0x4002441C))
-	
-
-
-
-//#define BTN_3 0x08 //will be connected to PE3 *** // 
-//#define BTN_0 0x10 //will be connected to PE4 *** //Shuffle
 
 /*//-------------------------GPIO PORT F-------------------------
 #define GPIO_PORTF_DATA_R       (*((volatile unsigned long *)0x400253FC))// DATA REGISTER Read/Write PF0-PF7
@@ -236,8 +232,8 @@ GPIO_PORTE_IBE_R &= ~SOUND_SENSOR; //not both edges
 GPIO_PORTE_IEV_R &=  ~SOUND_SENSOR; //Falling edge
 GPIO_PORTE_ICR_R = SOUND_SENSOR; //clear pending
 GPIO_PORTE_IM_R |= SOUND_SENSOR; //arm interrupt
-NVIC_EN0_R |= 0x00000010; //EnableInterrupts IRQ4 for PortE
-NVIC_PRI1_R = (NVIC_PRI1_R & 0xFF1FFFFF) | 0x00200000;
+NVIC_EN0_R |= 0x00000010; //EnableInterrupts IRQ4 for PortE 
+NVIC_PRI1_R = (NVIC_PRI1_R & 0xFF1FFFFF) | 0x00200000; // PRIORITY LEVEL 2
 }
 
 void PortA_Init(void){
