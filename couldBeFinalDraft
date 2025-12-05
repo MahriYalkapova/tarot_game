@@ -1,16 +1,12 @@
 //TCES430 FINAL PROJECT MAHRI AND JULIE ANN 
 
 //TAROT CARD GAME TO BE CONNECTED TO TM4C123GH6PM MP 
-//AND LCD & BUTTONS. IMPLEMENTS TIMER2A and _______ 
-// ***ADD[port details, TIMER details SW Functions etc]***
-// ***NARROW DOWN PORT E & PRIORIOTIES - CLEAN UP UNUSED BUTTONS! 
-// ***DOUBLE CHECK PORT F DEFINITION - DONT LEAVE OPEN PINS THAT ARENT NEEDED. 
-// *** TIE IN  READING TYPE. GOODBYE MESSAGE? TIME OUT & TURN OFF? 
-// *** 2 CLAPS TO SHUFFLE VIA 
+
 
 #include "tm4c123gh6pm.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 #define clear_display 0x01
@@ -105,6 +101,19 @@
 #define TIMER0_TAPR_R (*((volatile unsigned long *)0x40030038))
 #define SYSCTL_RCGCTIMER_R (*((volatile unsigned long *)0x400FE604))
 
+//TIMER1
+#define TIMER1_CFG_R            (*((volatile unsigned long *)0x40031000))// CONFIGURATION (16/32 Bit)
+#define TIMER1_TAMR_R           (*((volatile unsigned long *)0x40031004))// MODE ( Periodic, One Shot etc.)  //8 for 
+#define TIMER1_CTL_R            (*((volatile unsigned long *)0x4003100C))// CONTROL EN/DISABLE
+#define TIMER1_RIS_R            (*((volatile unsigned long *)0x4003101C))// RAW INTERRUPT STATUS 
+#define TIMER1_ICR_R            (*((volatile unsigned long *)0x40031024))// INTERRUPT CLR
+#define TIMER1_TAILR_R          (*((volatile unsigned long *)0x40031028))// INTERVAL LOAD VAL
+#define TIMER1_TAPR_R           (*((volatile unsigned long *)0x40031038))// PRESCALAR  
+#define TIMER1_IMR_R            (*((volatile unsigned long *)0x40031018))// FOR INTERRUPT MASK
+#define SYSCTL_RCGCTIMER_R      (*((volatile unsigned long *)0x400FE604))// CLOCK GATING FOR TIMERS
+#define TIMER1_TAV_R            (*((volatile unsigned long *)0x40031050))//
+
+
 //----------------------------TIMER2--------------------------- CURRENTLY DEFINED FOR 2 SECOND DELAY
 #define TIMER2_CFG_R            (*((volatile unsigned long *)0x40032000))// CONFIGURATION (16/32 Bit)
 #define TIMER2_TAMR_R           (*((volatile unsigned long *)0x40032004))// MODE ( Periodic, One Shot etc.)  //8 for 
@@ -113,7 +122,7 @@
 #define TIMER2_ICR_R            (*((volatile unsigned long *)0x40032024))// INTERRUPT CLR
 #define TIMER2_TAILR_R          (*((volatile unsigned long *)0x40032028))// INTERVAL LOAD VAL
 #define TIMER2_TAPR_R           (*((volatile unsigned long *)0x40032038))// PRESCALAR  
-//#define TIMER2_IMR_R          (*((volatile unsigned long *)0x40032018))// FOR INTERRUPT MASK
+#define TIMER2_IMR_R          (*((volatile unsigned long *)0x40032018))// FOR INTERRUPT MASK
 //#define SYSCTL_RCGCTIMER_R      (*((volatile unsigned long *)0x400FE604))// CLOCK GATING FOR TIMERS
 #define TIMER2_TAV_R            (*((volatile unsigned long *)0x40032050))
 
@@ -151,7 +160,7 @@ void timer0A_WaitMs(unsigned long ms);
 void timer2_InIt(void);
 void portE_Init(void);
 void PortF_Init(void);
-void timer2A_800mSdelay(int ttime);
+//void timer2A_800mSdelay(int ttime);
 int selReadingType(void);
 void showCardOnLCD(struct TarotCard *card, enum Orientation o);
 void scrollMeaningStep(void);
@@ -159,7 +168,9 @@ void squiggle(const char *readingType);
 void DisableInterrupts(void);
 void EnableInterrupts(void);
 void WaitForInterrupt(void);
-
+void Timer2A_Enable(void);
+void Timer2A_Disable(void);
+void TIMER2A_Handler(void);
 void GPIOA_Handler(void);
 void GPIOE_Handler(void);
 enum GameState { SelectingType, ReadyToShuffle, ShowingCard };
@@ -174,7 +185,7 @@ int type;
 const char *currentMeaning = 0;
 int scrollOffset = 0;
 
-//timer0A
+//timer0A//DEBOUNCE & SHORT DELAY TIMER
 void Timer0A_Init(void) {
 SYSCTL_RCGCTIMER_R |= 0x01;  // ENABLE CLOCK FOR  TIMER 0
 TIMER0_CTL_R = 0x00;         /* disable Timer0A before initialization */
@@ -195,20 +206,29 @@ TIMER0_ICR_R = 0x01;
 }
 
 //-----------------------------SUBROUTINES TO INITIALIZE timer0A, timer2A, PORTE, PORTF & LCD-----------------------------	
+void timer1A_Init(void){
+	SYSCTL_RCGCTIMER_R |= 0x02;
+	TIMER1_CTL_R = 0x00; 
+	TIMER1_CFG_R = 0x00;
+	TIMER1_TAMR_R = 0x02;
+	TIMER1_TAILR_R = 0xFFFFFFFF;
+	TIMER1_CTL_R |= 0x01;
+}
+
 void timer2_InIt(void){
 SYSCTL_RCGCTIMER_R |= 0x04;  // ENABLE CLOCK FOR  TIMER 2
+volatile unsigned long delay = SYSCTL_RCGCTIMER_R;
 TIMER2_CTL_R &= ~0x01;         /* disable Timer2A before initialization */
 TIMER2_CFG_R = 0x00;         /* 32-bit option */
 TIMER2_TAMR_R = 0x02;        /* B: bit [1][0]:00 Reset, 01 for 1 shot mode, 10 for periodic mode, 11 for capture mode; & bit [4]: 0 for down-counter, 1 for up counter */
-//  TIMER2_TAILR_R = 100000000= - 1; /* Timer B interval load value register */ // SETS 2 SEC CNTDWN PERIOD Assuming processor frequency 50 MHz default. However, frequency can be max 80 MHz
-TIMER2_TAILR_R = 64000000-1; /* Timer A interval load value register Defines Timer Period */ //SYSCLK: 80MHz.-> 64000000/80Mhz =.8s to reload.  
+TIMER2_TAILR_R = 20000000-1; /* Timer A interval load value register Defines Timer Period */ //SYSCLK: 80MHz.-> 64000000/80Mhz =.8s to reload.  
 TIMER2_ICR_R = 0x01;          /* clear the Timer2A timeout flag (BIT 1) after each cycle*/
+TIMER2_IMR_R |= 0x01;  	
 //TIMER2_TAV_R = 0; // RESET COUNTER WE WANT THIS T BEFORE THE SHUFFLE 
-TIMER2_CTL_R |= 0x01;        /* enable Timer 2A  after initialization (BIT 1) */
-//	TIMER2_TAPR_R = 0; // Prescalar value here is multiplying by 2 (1+1).. Can extend the cycle time max 256 times
+NVIC_PRI5_R = (NVIC_PRI5_R & 0x00FFFFFF) | 0x80000000;//priority 4
+NVIC_EN0_R |= 0x00800000;
 }
-
-
+//TIMER2_CTL_R |= 0x01;        /* enable Timer 2A  after initialization (BIT 1) */
 void PortE_Init(void){ 
 SYSCTL_RCGC2_R |= 0x0000010;     // 1) E clock
 volatile unsigned long delay;
@@ -226,33 +246,55 @@ GPIO_PORTE_IBE_R &= ~SOUND_SENSOR; //not both edges
 GPIO_PORTE_IEV_R &=  ~SOUND_SENSOR; //Falling edge
 GPIO_PORTE_ICR_R = SOUND_SENSOR; //clear pending
 GPIO_PORTE_IM_R |= SOUND_SENSOR; //arm interrupt
-NVIC_PRI1_R = (NVIC_PRI1_R & 0xFF1FFFFF) | 0x00200000;	
+NVIC_PRI1_R = (NVIC_PRI1_R & 0xFF1FFFFF) | 0x00200000;	//PRIORITY LVL 2
 NVIC_EN0_R |= 0x00000010; //EnableInterrupts IRQ4 for PortE
 }
 
-void PortA_Init(void){
-SYSCTL_RCGC2_R |= 0x00000001;     // 1) Enable clock for Port A (bit 0)
-volatile unsigned long delay = SYSCTL_RCGC2_R;
-GPIO_PORTA_CR_R  |= (BTN_1 | BTN_2);   // allow changes on PA2, PA3
+void PortA_Init(void){ //TEST 
+    SYSCTL_RCGCGPIO_R |= 0x01;        // enable clock for PortA
+    volatile unsigned long delay = SYSCTL_RCGCGPIO_R; // allow clock to stabilize
 
-GPIO_PORTA_AMSEL_R &= ~(BTN_1 | BTN_2); // disable analog on PA2, PA3
-GPIO_PORTA_AFSEL_R &= ~(BTN_1 | BTN_2); // no alternate functions
-//GPIO_PORTA_PCTL_R &= ~0x0000FF00;         // clear PCTL for PA2, PA3 (optional)
+    // FOR TESTING PA2 = input (LED), PA3 = input (SW1)
+    //GPIO_PORTA_DIR_R |= 0x04;         // set PA2 as output
+    GPIO_PORTA_DIR_R &= ~(BTN_1 | BTN_2);        // set PA3 as input
 
-GPIO_PORTA_DIR_R  &= ~(BTN_1 | BTN_2);  // PA2, PA3 inputs
-GPIO_PORTA_PUR_R  |=  (BTN_1 | BTN_2);  // enable pull-ups (active-low buttons)
-GPIO_PORTA_DEN_R  |=  (BTN_1 | BTN_2);  // digital enable PA2, PA3
-	
-GPIO_PORTA_IS_R &= ~(BTN_1 | BTN_2);       /*  PA2&3 edge-sensitive */
-GPIO_PORTA_IBE_R &= ~(BTN_1 | BTN_2);      /*  PA2&3 is not both edges */
-GPIO_PORTA_IEV_R &= ~(BTN_1 | BTN_2);      /*  PA2&3 falling edge event */
-GPIO_PORTA_ICR_R = (BTN_1 | BTN_2);        /*  Clear flag4&5 */
-GPIO_PORTA_IM_R |= (BTN_1 | BTN_2);        /*  arm interrupt on PA2 & PA3 */
-NVIC_EN0_R |= 0x00000001; 		/*enables interrupt for port A in NVIC*/
-NVIC_PRI0_R = (NVIC_PRI0_R & 0xFFFFFF1F) | 0x00000080; /*  priority 4 */	
+    // Enable digital function on PA2 and PA3
+    GPIO_PORTA_DEN_R |= (BTN_1 | BTN_2);
+
+    // Enable pull-up on PA2 & PA3 (SWs are active-low)
+    GPIO_PORTA_PUR_R |= BTN_1 | BTN_2; 
+    GPIO_PORTA_IS_R &= ~(BTN_1 | BTN_2);       /*  PA2&3 edge-sensitive */
+		GPIO_PORTA_IBE_R &= ~(BTN_1 | BTN_2);      /*  PA2&3 is not both edges */
+		GPIO_PORTA_IEV_R &= ~(BTN_1 | BTN_2);      /*  PA2&3 falling edge event */
+		GPIO_PORTA_ICR_R = (BTN_1 | BTN_2);   	
+		GPIO_PORTA_IM_R |= (BTN_1 | BTN_2);        /*  arm interrupt */
+		NVIC_EN0_R |= 0x00000001; 		/*enables interrupt for port A in NVIC*/
+	  NVIC_PRI0_R = (NVIC_PRI0_R & 0xFFFFFF1F) | 0x00000060; /*  PRIORITY LVLit s 3 */	
 
 }
 
+//void PortA_Init(void){
+	
+//SYSCTL_RCGC2_R |= 0x00000001;     // 1) Enable clock for Port A (bit 0)
+//volatile unsigned long delay = SYSCTL_RCGC2_R;
+//GPIO_PORTA_CR_R  |= (BTN_1 | BTN_2);   // allow changes on PA2, PA3
+
+//GPIO_PORTA_AMSEL_R &= ~(BTN_1 | BTN_2); // disable analog on PA2, PA3
+//GPIO_PORTA_AFSEL_R &= ~(BTN_1 | BTN_2); // no alternate functions
+//GPIO_PORTA_PCTL_R &= ~0x0000FF00;         // clear PCTL for PA2, PA3 (optional)
+
+//GPIO_PORTA_DIR_R  &= ~(BTN_1 | BTN_2);  // PA2, PA3 inputs
+//GPIO_PORTA_PUR_R  |=  (BTN_1 | BTN_2);  // enable pull-ups (active-low buttons)GPIO_PORTA_DEN_R  |=  (BTN_1 | BTN_2);  // digital enable PA2, PA3
+	
+//GPIO_PORTA_IS_R &= ~(BTN_1 | BTN_2);       /*  PA2&3 edge-sensitive */
+//GPIO_PORTA_IBE_R &= ~(BTN_1 | BTN_2);      /*  PA2&3 is not both edges */
+//GPIO_PORTA_IEV_R &= ~(BTN_1 | BTN_2);      /*  PA2&3 falling edge event */
+//GPIO_PORTA_ICR_R = (BTN_1 | BTN_2);        /*  Clear flag4&5 */
+//GPIO_PORTA_IM_R |= (BTN_1 | BTN_2);        /*  arm interrupt on PA2 & PA3 */
+//NVIC_EN0_R |= 0x00000001; 		/*enables interrupt for port A in NVIC*/
+//NVIC_PRI0_R = (NVIC_PRI0_R & 0xFFFFFF1F) | 0x00000080; /*  priority 4 */	
+
+//}
 
 
 /*void PortF_Init(void){
@@ -321,6 +363,19 @@ LCD_write_char(str[i]);
 
 }
 
+//test a short deck
+/*struct TarotCard deck[] = {
+    { "Sun",       "Joy",       "Sad" },
+    { "Moon",      "Dreams",    "Confuse" },
+    { "Star",      "Hope",      "Doubt" },
+    { "Tower",     "Change",    "Fear" },
+    { "Lovers",    "Union",     "Breakup" },
+    { "Chariot",   "Victory",   "Loss" },
+    { "Justice",   "Fair",      "Bias" },
+    { "Hermit",    "Guide",     "Lonely" },
+    { "World",     "Complete",  "Delay" },
+    { "Fool",      "New Path",  "Risk" }
+};*/ 
 
 
 struct TarotCard deck[] = {
@@ -451,6 +506,7 @@ deck[j] = temp;
 }
 
 int main() {
+timer1A_Init();
 Timer0A_Init();
 LCD_init();	
 timer2_InIt();
@@ -466,8 +522,7 @@ LCD_string("WELCOME TO");
 Timer0A_WaitMs(500);
 LCD_Cmd(0xC0); //2nd Row
 LCD_string("430 Mystic Tarot");
-timer2A_800mSdelay(2); 
-	
+Timer0A_WaitMs(1600);
 LCD_Cmd(0x01);  // clear display_left	
 Timer0A_WaitMs(150);
 LCD_Cmd(0x80);	// first row
@@ -483,6 +538,9 @@ unsigned long sound = GPIO_PORTE_DATA_R & SOUND_SENSOR;
 int lastClap = (sound ? 1 : 0); 
 
 while (1) {
+		//Define Clap to Shuffle: 
+		unsigned long clap = GPIO_PORTE_DATA_R & SOUND_SENSOR;
+		int clapNow = (clap ? 1 : 0);
 	if (state == SelectingType){
 		type = selReadingType(); //block shuffle until selReadingType is 
 		justEnteredReady = 1; 
@@ -496,18 +554,15 @@ while (1) {
 	}
 	
 	else if(state == ReadyToShuffle) {
-	//Define Clap to Shuffle: 
-		unsigned long clap = GPIO_PORTE_DATA_R & SOUND_SENSOR;
-		int clapNow = (clap ? 1 : 0);
+
 	
 	 if(!justEnteredReady && (shuffleFlag || (lastClap ==1 && clapNow == 0))){
 			shuffleFlag = 0;
 		
 			squiggle(rType[type]); // DO SOME MAGIC
-			timer2A_800mSdelay(2);
-
-			srand(TIMER2_TAV_R);  //PULL FROM CLOCK TO GENERATE RANDOM CARD
-			shuffleDeck(deck, deckSize);
+			Timer0A_WaitMs(200);//
+			srand(TIMER1_TAV_R);
+		 shuffleDeck(deck, deckSize);
 		
 			struct TarotCard drawn = deck[0];
 			enum Orientation o = (rand() % 2 == 0) ? Upright : Reversed;
@@ -516,9 +571,12 @@ while (1) {
 		
 		
 			showCardOnLCD(&drawn, o);
+		  Timer2A_Enable();
 			Timer0A_WaitMs(200); //debounce
-			timer2A_800mSdelay(4);
+			Timer0A_WaitMs(1600); // IS THIS TOO LONG?? 
 			state = ShowingCard;	
+		 
+			
 	}
 	 justEnteredReady = 0; //clear guard after one cycle because round 1 we  must select type before we can go back to select screen. 
 	//if (state == SelectingType) justEnteredReady = 1;//mark that we just entered ready to shuffle 
@@ -533,26 +591,35 @@ while (1) {
 	// scroll meaning wait for ISR to selReadingFlag
 		if (selReadingFlag){
 			selReadingFlag = 0;
+			Timer2A_Disable();
 			state = SelectingType;
 		}
-		else {
-			timer2A_800mSdelay(10);
-			state = ReadyToShuffle; // go back and wait for next shuffle 
+		else if (shuffleFlag || (lastClap == 1 && clapNow==0)){
+				shuffleFlag = 0; 
+				Timer2A_Disable();
+				state = ReadyToShuffle; 
+				justEnteredReady = 1;	
 		}
-		//side scroll every 250ms
-		Timer0A_WaitMs(250);
-		scrollMeaningStep();
-	}
+	
 	}
 }
-void timer2A_800mSdelay(int ttime) { //  
+}
+
+void Timer2A_Enable(void){
+	TIMER2_CTL_R |= 0x01; //enable timer 2A
+} 
+void Timer2A_Disable(void){
+	TIMER2_CTL_R &= ~0x01; //Clear bits to disable timer 2A
+}
+
+/*void timer2A_800mSdelay(int ttime) { //  
 // 100 mSEC 
 for(int i = 0; i < ttime; i++) { 
 TIMER2_CTL_R |=0x01; //Enable the timer
 while ((TIMER2_RIS_R & 0x01) == 0);      /* wait for Timer2 timeout flag */
-TIMER2_ICR_R = 0x01;      /* clear the Timer2 timeout flag */
-}
-}
+//TIMER2_ICR_R = 0x01;      /* clear the Timer2 timeout flag */
+//}
+//}*/
 
 int selReadingType(void){
 LCD_Cmd(0x01); // Clear display 
@@ -585,42 +652,43 @@ if (SW2 == 0){
 //show card & meaning
 void showCardOnLCD(struct TarotCard *card, enum Orientation o) {
 LCD_Cmd(clear_display);
+	
 LCD_Cmd(firstRow);
-
 LCD_string(card->name);
 
 currentMeaning = (o == Upright) ? card -> upright : card -> reversed;
 scrollOffset = 0;
 
 LCD_Cmd(secondRow);
-for (int i = 0; i < 16; i++) {
-char c = currentMeaning[i];
-if (c == '\0') c = ' ';
-LCD_write_char(c);
-}
+	for (int i = 0; i < 16; i++) {
+		char c = currentMeaning[i];
+		if (c == '\0') c = ' ';
+		LCD_write_char(c);
+	}
 }
 
 //side-scroll
 void scrollMeaningStep(void) {
-if (currentMeaning == 0) return;
+	if (currentMeaning == 0) return;
 
-int len = 0;
-while (currentMeaning[len] != '\0') {
-len++;
-}
+	int len = strlen(currentMeaning);
+	while (currentMeaning[len] != '\0') {
+	len++;
+	}
 
-if (len <= 16) return;
-
-scrollOffset++;
-if (scrollOffset > (len - 16)) {
-scrollOffset = 0;
+	if (len <= 16) return;
+		scrollOffset++;
+	
+	if (scrollOffset > (len + 16)) { //allow scrollOffset to go up to len +16 (text fully off screen) 
+		scrollOffset = 0;
 }
 
 LCD_Cmd(secondRow);
 for (int i = 0; i < 16; i++) {
-int index = scrollOffset + i;
-char c = (index < len) ? currentMeaning[index] : ' ';
-LCD_write_char(c);
+	int index = (scrollOffset + i); //wrap around
+	char c = (index < len) ? currentMeaning[index] : ' ';
+	//char c =  currentMeaning[index];
+	LCD_write_char(c);
 }
 }
 void squiggle(const char *readingType){
@@ -640,7 +708,7 @@ for(int col = 0; col<16; col++){
 		LCD_Cmd(0x01);  // clear display
 		LCD_Cmd(0x80+1);	// first row , center-ISH
 		LCD_string("DIVINING YOUR");
-		timer2A_800mSdelay(1);
+		Timer0A_WaitMs(800);;
 		char buffer[32];
 		sprintf(buffer,"         %s   ", readingType);	
 		for (int i = 0; buffer[i]!='\0';i++){
@@ -652,6 +720,11 @@ for(int col = 0; col<16; col++){
 
 		}	//Timer0A_WaitMs(400);;// delay between shifts
 
+}
+void TIMER2A_Handler(void){
+	TIMER2_ICR_R = 0x01;
+	//GPIO_PORTA_DATA_R ^= 0x04;//toggle PA2
+	scrollMeaningStep(); //SCORLL THE MEANING
 }
 
 void GPIOA_Handler(void)
