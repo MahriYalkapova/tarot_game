@@ -68,7 +68,7 @@
 #define SYSCTL_RCGC2_R          (*((volatile unsigned long *)0x400FE108)) // RUN MODE CLK GATING FOR GPIO; Configure clock
 	
 	
-#define NVIC_EN0_R              (*((volatile unsigned long *)0xE000E100))  // IRQ 0 to 31 Set Enable Register //no updated needed to incl PE
+//#define NVIC_EN0_R              (*((volatile unsigned long *)0xE000E100))  // IRQ 0 to 31 Set Enable Register //no updated needed to incl PE
 #define NVIC_PRI0_R             (*((volatile unsigned long *)0xE000E400))  // IRQ 0 to 3 Priority Register
 
 #define GPIO_PORTA_IS_R         (*((volatile unsigned long *)0x40004404)) 
@@ -129,6 +129,7 @@ volatile unsigned long SW1; //input from   ***
 volatile unsigned long SW2; //input from   ***	
 volatile int selReadingFlag = 0;
 volatile int shuffleFlag = 0;
+static int justEnteredReady = 0; //one-pass guard. after: must select a reading type before first shuffle
 
 // Orientation enum
 enum Orientation { Upright, Reversed };
@@ -212,20 +213,21 @@ void PortE_Init(void){
 SYSCTL_RCGC2_R |= 0x0000010;     // 1) E clock
 volatile unsigned long delay;
 delay = SYSCTL_RCGC2_R; //reading register adds a delay
+GPIO_PORTE_LOCK_R = 0x4C4F434B;   // unlock Port E	
 GPIO_PORTE_CR_R |= 0x10;           // Allow changes to PE4 ***
 GPIO_PORTE_AMSEL_R &= ~0x10; //disable analog functions. 	
 GPIO_PORTE_AFSEL_R &= ~0x10; //no alternative functions. 
 //GPIO_PORTE_PCTL_R = 0x00000000;   // 4) GPIO clear bit PCTL 
 GPIO_PORTE_DIR_R &= ~0x10; //0x1E = 0001 1110 Connected pins are E4; INPUT ***
-GPIO_PORTE_PUR_R |= ~0x10;          // enable pullup resistors on PE4 ***
-GPIO_PORTE_DEN_R |= 0x10;          // enable digital pins PE4 ***
+//GPIO_PORTE_PUR_R |= SOUND_SENSOR;          // enable pullup resistors on PE4 ***
+GPIO_PORTE_DEN_R |= SOUND_SENSOR;          // enable digital pins PE4 ***
 GPIO_PORTE_IS_R &= ~SOUND_SENSOR; //edge sensitive
 GPIO_PORTE_IBE_R &= ~SOUND_SENSOR; //not both edges
-GPIO_PORTE_ICR_R = SOUND_SENSOR; //clear pending
 GPIO_PORTE_IEV_R &=  ~SOUND_SENSOR; //Falling edge
+GPIO_PORTE_ICR_R = SOUND_SENSOR; //clear pending
 GPIO_PORTE_IM_R |= SOUND_SENSOR; //arm interrupt
+NVIC_PRI1_R = (NVIC_PRI1_R & 0xFF1FFFFF) | 0x00200000;	
 NVIC_EN0_R |= 0x00000010; //EnableInterrupts IRQ4 for PortE
-NVIC_PRI1_R = (NVIC_PRI1_R & 0xFF1FFFFF) | 0x00200000;
 }
 
 void PortA_Init(void){
@@ -452,7 +454,7 @@ int main() {
 Timer0A_Init();
 LCD_init();	
 timer2_InIt();
-PortE_Init();	//CALL INITIALIZATION OF PORTS E1-E4;
+PortE_Init();	//CALL INITIALIZATION OF PORT E4;
 PortA_Init();
 
 //*****SPLASH SCREEN*****
@@ -465,66 +467,85 @@ Timer0A_WaitMs(500);
 LCD_Cmd(0xC0); //2nd Row
 LCD_string("430 Mystic Tarot");
 timer2A_800mSdelay(2); 
+	
 LCD_Cmd(0x01);  // clear display_left	
 Timer0A_WaitMs(150);
 LCD_Cmd(0x80);	// first row
 Timer0A_WaitMs(150);
-type = selReadingType();
+type = selReadingType(); 
+//SW1 Scrolls through reading types, 
+//SW2 sets state=ReadyToShuffle & clears shuffleFlag
 
 //ENABLE INTERRUPTS
 EnableInterrupts();             /* Enable global Interrupt flag (I) */	
 
 unsigned long sound = GPIO_PORTE_DATA_R & SOUND_SENSOR;
-int lastClap = (sound ? 1 : 0);  // seed with real state
+int lastClap = (sound ? 1 : 0); 
 
 while (1) {
-	//block shuffle until selReadingType is done
 	if (state == SelectingType){
 		type = selReadingType(); //block shuffle until selReadingType is 
-	//	state = ReadyToShuffle; 
+		justEnteredReady = 1; 
+		//selReadingType sets state = ReadyToShuffle
+	}	
+	
+	if(selReadingFlag){
+		selReadingFlag = 0;
+		type = selReadingType();
+		justEnteredReady = 1;
 	}
+	
+	else if(state == ReadyToShuffle) {
 	//Define Clap to Shuffle: 
 		unsigned long clap = GPIO_PORTE_DATA_R & SOUND_SENSOR;
 		int clapNow = (clap ? 1 : 0);
 	
-	if(state == ReadyToShuffle && (shuffleFlag || (lastClap ==1 && clapNow == 0))){
-		shuffleFlag = 0;
+	 if(!justEnteredReady && (shuffleFlag || (lastClap ==1 && clapNow == 0))){
+			shuffleFlag = 0;
 		
-		squiggle(rType[type]); // DO SOME MAGIC
-		timer2A_800mSdelay(2);
+			squiggle(rType[type]); // DO SOME MAGIC
+			timer2A_800mSdelay(2);
 
-		srand(TIMER2_TAV_R);  //PULL FROM CLOCK TO GENERATE RANDOM CARD
-		shuffleDeck(deck, deckSize);
+			srand(TIMER2_TAV_R);  //PULL FROM CLOCK TO GENERATE RANDOM CARD
+			shuffleDeck(deck, deckSize);
 		
-		struct TarotCard drawn = deck[0];
-		enum Orientation o = (rand() % 2 == 0) ? Upright : Reversed;
+			struct TarotCard drawn = deck[0];
+			enum Orientation o = (rand() % 2 == 0) ? Upright : Reversed;
 		
-		Timer0A_WaitMs(150);
+			Timer0A_WaitMs(150);
 		
 		
-		showCardOnLCD(&drawn, o);
-		Timer0A_WaitMs(200); //debounce
-		timer2A_800mSdelay(4);
-		state = ShowingCard;
-		
+			showCardOnLCD(&drawn, o);
+			Timer0A_WaitMs(200); //debounce
+			timer2A_800mSdelay(4);
+			//scrollOffset = 0; 
+			state = ShowingCard;	
 	}
-		
-	if(selReadingFlag){
-		type = selReadingType();
-		selReadingFlag = 0;
-	
-	
-	}
-//update clap state 
-lastClap = clapNow;
-
-//side scroll every 250ms
-Timer0A_WaitMs(250);
-scrollMeaningStep();
-}
+	 justEnteredReady = 0; //clear guard after one cycle because round 1 we  must select type before we can go back to select screen. 
+	//if (state == SelectingType) justEnteredReady = 1;//mark that we just entered ready to shuffle 
+	//update clap state 
+	lastClap = clapNow;
+	//side scroll every 250ms
+		//Timer0A_WaitMs(250);
+		//scrollMeaningStep();
 
 }
-
+	else if (state == ShowingCard){
+	// scroll meaning wait for ISR to selReadingFlag
+		if (selReadingFlag){
+			selReadingFlag = 0;
+			state = SelectingType;
+		}
+		else {
+			timer2A_800mSdelay(10);
+			state = ReadyToShuffle; // go back and wait for next shuffle 
+		}
+		//side scroll every 250ms
+		Timer0A_WaitMs(250);
+		scrollMeaningStep();
+	}
+	}
+}
 void timer2A_800mSdelay(int ttime) { //  
 // 100 mSEC 
 for(int i = 0; i < ttime; i++) { 
@@ -604,6 +625,7 @@ LCD_write_char(c);
 }
 }
 void squiggle(const char *readingType){
+	
 for(int col = 0; col<16; col++){
 	LCD_Cmd(0x01); //clear display
 	Timer0A_WaitMs(150);
@@ -613,6 +635,7 @@ for(int col = 0; col<16; col++){
 		LCD_Cmd(0xC0 + col); //On 2nd Row
 	}
 	LCD_string("*");
+	Timer0A_WaitMs(180);
 }
 // DIVING YOUR [chosen Reading Type]
 		LCD_Cmd(0x01);  // clear display
@@ -628,7 +651,7 @@ for(int col = 0; col<16; col++){
 			LCD_string(&buffer[i]); //print substring starting at i
 			Timer0A_WaitMs(400);;// delay between shifts
 
-		}	Timer0A_WaitMs(400);// delay between shifts
+		}	//Timer0A_WaitMs(400);;// delay between shifts
 
 }
 
@@ -643,16 +666,15 @@ void GPIOA_Handler(void)
 					selReadingFlag = 1;
 			}
 			if (SW2 == 0){//BTN_2 Triggered
-				shuffleFlag = 1;
+				selReadingFlag = 1;
 			}	
 }
 
 void GPIOE_Handler(void){
-	if(GPIO_PORTE_RIS_R & 0x10){
 		GPIO_PORTE_ICR_R=0x10;
 		shuffleFlag = 1;
 	}
-}
+
 		
 		
 void Delay(void){unsigned long volatile time;
